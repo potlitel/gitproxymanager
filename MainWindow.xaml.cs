@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
-using System.Windows.Threading;
 using MahApps.Metro.Controls;
 using GitProxyManager.ViewModels;
 
@@ -10,8 +10,6 @@ namespace GitProxyManager;
 public partial class MainWindow : MetroWindow
 {
     private MainViewModel? _viewModel;
-    private string _lastToggleLabel = string.Empty;
-    private string _lastConfigInfo = string.Empty;
 
     public MainWindow()
     {
@@ -24,42 +22,40 @@ public partial class MainWindow : MetroWindow
         _viewModel = DataContext as MainViewModel;
         if (_viewModel != null)
         {
-            _lastToggleLabel = _viewModel.ToggleLabel;
-            _lastConfigInfo = _viewModel.CurrentProxyInfo;
             _viewModel.PropertyChanged += ViewModel_PropertyChanged;
         }
     }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainViewModel.ToggleLabel) && _viewModel != null)
+        if (_viewModel == null) return;
+
+        if (e.PropertyName == nameof(MainViewModel.ToggleLabel))
         {
-            var newLabel = _viewModel.ToggleLabel;
-            if (newLabel != _lastToggleLabel)
-            {
-                _lastToggleLabel = newLabel;
-                AnimateFade(ToggleBorder);
-            }
+            PulseScale(ToggleScale);
         }
-        else if (e.PropertyName == nameof(MainViewModel.CurrentProxyInfo) && _viewModel != null)
+        else if (e.PropertyName == nameof(MainViewModel.CurrentProxyInfo))
         {
-            var newInfo = _viewModel.CurrentProxyInfo;
-            if (newInfo != _lastConfigInfo)
-            {
-                _lastConfigInfo = newInfo;
-                AnimateFade(ConfigInfoBorder);
-            }
+            PulseScale(ConfigScale);
         }
     }
 
-    private void AnimateFade(FrameworkElement element)
+    private void PulseScale(ScaleTransform scale)
     {
-        var fadeOut = new DoubleAnimation(1.0, 0.0, TimeSpan.FromSeconds(0.15));
-        fadeOut.Completed += (s, e) =>
+        var animDown = new DoubleAnimation(0.97, TimeSpan.FromMilliseconds(120))
         {
-            var fadeIn = new DoubleAnimation(0.0, 1.0, TimeSpan.FromSeconds(0.15));
-            element.BeginAnimation(OpacityProperty, fadeIn);
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
         };
-        element.BeginAnimation(OpacityProperty, fadeOut);
+        animDown.Completed += (s, e) =>
+        {
+            var animUp = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(180))
+            {
+                EasingFunction = new ElasticEase { EasingMode = EasingMode.EaseOut, Oscillations = 1, Springiness = 3 }
+            };
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, animUp);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, animUp);
+        };
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, animDown);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, animDown);
     }
 }

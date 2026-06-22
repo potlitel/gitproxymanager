@@ -33,12 +33,6 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _currentProxyInfo = string.Empty;
 
-    [ObservableProperty]
-    private bool _isToggleLabelAnimating;
-
-    [ObservableProperty]
-    private bool _isConfigAnimating;
-
     public MainViewModel()
     {
         LoadConfig();
