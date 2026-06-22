@@ -33,6 +33,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _currentProxyInfo = string.Empty;
 
+    [ObservableProperty]
+    private bool _isToggleLabelAnimating;
+
+    [ObservableProperty]
+    private bool _isConfigAnimating;
+
     public MainViewModel()
     {
         LoadConfig();
@@ -87,6 +93,7 @@ public partial class MainViewModel : ObservableObject
 
         ConfigService.Save(_config);
         UpdateToggleLabel();
+        NotifyTrayIcon();
     }
 
     [RelayCommand]
@@ -101,6 +108,7 @@ public partial class MainViewModel : ObservableObject
         StatusMessage = "Configuración restablecida";
         StatusColor = "#FF9800";
         UpdateToggleLabel();
+        NotifyTrayIcon();
     }
 
     [RelayCommand]
@@ -125,6 +133,7 @@ public partial class MainViewModel : ObservableObject
         _config.IsEnabled = value;
         UpdateStatusMessage();
         UpdateToggleLabel();
+        NotifyTrayIcon();
     }
 
     private void UpdateStatusMessage()
@@ -146,5 +155,10 @@ public partial class MainViewModel : ObservableObject
     private void UpdateToggleLabel()
     {
         ToggleLabel = IsEnabled ? "Proxy habilitado" : "Proxy deshabilitado";
+    }
+
+    private void NotifyTrayIcon()
+    {
+        ProxyStateService.NotifyStateChanged(IsEnabled, Host, Port);
     }
 }

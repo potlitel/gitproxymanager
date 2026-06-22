@@ -22,7 +22,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\Icons\app-icon.ico" />
+    <EmbeddedResource Include="Resources\Icons\app-icon-active.ico" />
     <Resource Include="Resources\Icons\app-icon.ico" />
+    <Resource Include="Resources\Icons\app-icon-active.ico" />
   </ItemGroup>
 
 </Project>
