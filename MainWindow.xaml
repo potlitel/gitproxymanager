@@ -18,6 +18,7 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <local:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
         <local:BoolToHorizontalAlignmentConverter x:Key="BoolToHorizontalAlignmentConverter"/>
+        <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
     </mahApps:MetroWindow.Resources>
 
     <Grid Margin="24">
@@ -25,6 +26,7 @@
             <viewModel:MainViewModel/>
         </Grid.DataContext>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -46,7 +48,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="Proxy habilitado"
+                <TextBlock Grid.Column="0" Text="{Binding ToggleLabel}"
                            VerticalAlignment="Center" FontSize="14" Foreground="#CDD6F4"/>
 
                 <ToggleButton x:Name="ToggleProxy" Grid.Column="1"
@@ -121,8 +123,17 @@
             </Grid>
         </Border>
 
+        <!-- Current Proxy Info -->
+        <Border Grid.Row="3" Background="#181825" CornerRadius="8" Padding="16,10" Margin="0,0,0,16"
+                Visibility="{Binding CurrentProxyInfo, Converter={StaticResource StringToVisibilityConverter}}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="ℹ️ " FontSize="13" Foreground="#89B4FA"/>
+                <TextBlock Text="{Binding CurrentProxyInfo}" FontSize="13" Foreground="#A6ADC8"/>
+            </StackPanel>
+        </Border>
+
         <!-- Buttons -->
-        <Grid Grid.Row="3" Margin="0,0,0,16">
+        <Grid Grid.Row="4" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="12"/>
@@ -143,7 +154,7 @@
         </Grid>
 
         <!-- Status Bar -->
-        <Border Grid.Row="4" Background="#181825" CornerRadius="6" Padding="12,8"
+        <Border Grid.Row="5" Background="#181825" CornerRadius="6" Padding="12,8"
                 VerticalAlignment="Bottom">
             <StackPanel Orientation="Horizontal">
                 <Ellipse Width="8" Height="8" Fill="{Binding StatusColor}" Margin="0,0,8,0"/>

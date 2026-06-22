@@ -27,6 +27,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _canToggle;
 
+    [ObservableProperty]
+    private string _toggleLabel = "Proxy deshabilitado";
+
+    [ObservableProperty]
+    private string _currentProxyInfo = string.Empty;
+
     public MainViewModel()
     {
         LoadConfig();
@@ -34,12 +40,26 @@ public partial class MainViewModel : ObservableObject
 
     private void LoadConfig()
     {
-        _config = ConfigService.Load();
-        IsEnabled = _config.IsEnabled;
-        Host = _config.Host;
-        Port = _config.Port;
+        var gitConfig = GitProxyService.ReadCurrentConfig();
+
+        if (gitConfig.IsEnabled)
+        {
+            _config = gitConfig;
+            IsEnabled = true;
+            Host = gitConfig.Host;
+            Port = gitConfig.Port;
+        }
+        else
+        {
+            _config = ConfigService.Load();
+            IsEnabled = _config.IsEnabled;
+            Host = _config.Host;
+            Port = _config.Port;
+        }
+
         CanToggle = !string.IsNullOrWhiteSpace(Host);
         UpdateStatusMessage();
+        UpdateToggleLabel();
     }
 
     [RelayCommand]
@@ -66,6 +86,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         ConfigService.Save(_config);
+        UpdateToggleLabel();
     }
 
     [RelayCommand]
@@ -79,6 +100,7 @@ public partial class MainViewModel : ObservableObject
         ConfigService.Save(new ProxyConfig());
         StatusMessage = "Configuración restablecida";
         StatusColor = "#FF9800";
+        UpdateToggleLabel();
     }
 
     [RelayCommand]
@@ -102,6 +124,7 @@ public partial class MainViewModel : ObservableObject
     {
         _config.IsEnabled = value;
         UpdateStatusMessage();
+        UpdateToggleLabel();
     }
 
     private void UpdateStatusMessage()
@@ -110,11 +133,18 @@ public partial class MainViewModel : ObservableObject
         {
             StatusMessage = $"Proxy activo: {Host}:{Port}";
             StatusColor = "#4CAF50";
+            CurrentProxyInfo = $"Configuración actual: {Host}:{Port}";
         }
         else
         {
             StatusMessage = "Proxy desactivado";
             StatusColor = "#888888";
+            CurrentProxyInfo = string.Empty;
         }
+    }
+
+    private void UpdateToggleLabel()
+    {
+        ToggleLabel = IsEnabled ? "Proxy habilitado" : "Proxy deshabilitado";
     }
 }
