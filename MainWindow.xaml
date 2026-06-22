@@ -1,0 +1,155 @@
+﻿<mahApps:MetroWindow x:Class="GitProxyManager.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mah="http://metro.mahapps.com/winfx/2006/xaml/presentation"
+        xmlns:mahApps="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        xmlns:local="clr-namespace:GitProxyManager"
+        xmlns:viewModel="clr-namespace:GitProxyManager.ViewModels"
+        Title="Git Proxy Manager"
+        Height="320" Width="450"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        ShowTitleBar="True"
+        ShowDialogsOverTitleBar="False"
+        Background="#1E1E2E"
+        Foreground="#CDD6F4">
+
+    <mahApps:MetroWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <local:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
+        <local:BoolToHorizontalAlignmentConverter x:Key="BoolToHorizontalAlignmentConverter"/>
+    </mahApps:MetroWindow.Resources>
+
+    <Grid Margin="24">
+        <Grid.DataContext>
+            <viewModel:MainViewModel/>
+        </Grid.DataContext>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" Text="Git Proxy Manager"
+                   FontSize="22" FontWeight="Bold"
+                   Foreground="#89B4FA" Margin="0,0,0,20"/>
+
+        <!-- Toggle + Status -->
+        <Border Grid.Row="1" Background="#313244" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="Proxy habilitado"
+                           VerticalAlignment="Center" FontSize="14" Foreground="#CDD6F4"/>
+
+                <ToggleButton x:Name="ToggleProxy" Grid.Column="1"
+                              IsChecked="{Binding IsEnabled}"
+                              IsEnabled="{Binding CanToggle}"
+                              Margin="12,0"
+                              MinWidth="50" MinHeight="26"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center">
+                    <ToggleButton.Template>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border x:Name="toggleBorder"
+                                    CornerRadius="13" Padding="3"
+                                    Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked, Converter={StaticResource BoolToBrushConverter}}"
+                                    Cursor="Hand">
+                                <Border x:Name="toggleKnob"
+                                        Width="20" Height="20"
+                                        CornerRadius="10"
+                                        Background="#CDD6F4"
+                                        HorizontalAlignment="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked, Converter={StaticResource BoolToHorizontalAlignmentConverter}}"
+                                        Margin="2"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="toggleKnob" Property="HorizontalAlignment" Value="Right"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="False">
+                                    <Setter TargetName="toggleKnob" Property="HorizontalAlignment" Value="Left"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </ToggleButton.Template>
+                </ToggleButton>
+
+                <Ellipse Grid.Column="2" Width="10" Height="10"
+                         VerticalAlignment="Center"
+                         Fill="{Binding StatusColor}"/>
+            </Grid>
+        </Border>
+
+        <!-- Proxy Host + Port -->
+        <Border Grid.Row="2" Background="#313244" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="80"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="Proxy:"
+                           VerticalAlignment="Center" FontSize="14"
+                           Foreground="#CDD6F4" Margin="0,0,10,0"/>
+
+                <TextBox Grid.Column="1"
+                         Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}"
+                         Background="#45475A" Foreground="#CDD6F4"
+                         BorderBrush="#585B7A" BorderThickness="1"
+                         Padding="8,6" FontSize="13"
+                         VerticalContentAlignment="Center"/>
+
+                <TextBlock Grid.Column="2" Text="Puerto:"
+                           VerticalAlignment="Center" FontSize="14"
+                           Foreground="#CDD6F4" Margin="14,0,10,0"/>
+
+                <TextBox Grid.Column="3"
+                         Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}"
+                         Background="#45475A" Foreground="#CDD6F4"
+                         BorderBrush="#585B7A" BorderThickness="1"
+                         Padding="8,6" FontSize="13"
+                         VerticalContentAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Buttons -->
+        <Grid Grid.Row="3" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="Aplicar"
+                    Command="{Binding ApplyCommand}"
+                    Background="#89B4FA" Foreground="#1E1E2E"
+                    FontWeight="Bold" FontSize="13"
+                    Padding="0,8" Cursor="Hand"/>
+
+            <Button Grid.Column="2" Content="Restablecer"
+                    Command="{Binding ResetCommand}"
+                    Background="#45475A" Foreground="#CDD6F4"
+                    FontSize="13"
+                    Padding="0,8" Cursor="Hand"/>
+        </Grid>
+
+        <!-- Status Bar -->
+        <Border Grid.Row="4" Background="#181825" CornerRadius="6" Padding="12,8"
+                VerticalAlignment="Bottom">
+            <StackPanel Orientation="Horizontal">
+                <Ellipse Width="8" Height="8" Fill="{Binding StatusColor}" Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding StatusMessage}"
+                           FontSize="12" Foreground="#A6ADC8"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</mahApps:MetroWindow>

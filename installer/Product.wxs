@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Package Name="Git Proxy Manager"
+           Manufacturer="GitProxyManager"
+           Version="1.0.0.0"
+           UpgradeCode="A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
+           Scope="perUser">
+
+    <SummaryInformation Description="Gestor de proxy para Git"
+                        Manufacturer="GitProxyManager" />
+
+    <MajorUpgrade
+      DowngradeErrorMessage="Ya tiene una version mas reciente instalada." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Install Directory -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="GitProxyManager">
+
+        <Component Id="ApplicationFiles" Guid="11111111-2222-3333-4444-555555555555">
+          <File Id="GitProxyManager.exe"
+                Source="..\bin\Release\net10.0-windows\GitProxyManager.exe"
+                KeyPath="yes" />
+          <File Id="GitProxyManager.dll"
+                Source="..\bin\Release\net10.0-windows\GitProxyManager.dll" />
+          <File Id="CommunityToolkitMvvmDll"
+                Source="..\bin\Release\net10.0-windows\CommunityToolkit.Mvvm.dll" />
+          <File Id="MahAppsMetroDll"
+                Source="..\bin\Release\net10.0-windows\MahApps.Metro.dll" />
+          <File Id="HardcodetNotifyIconDll"
+                Source="..\bin\Release\net10.0-windows\Hardcodet.NotifyIcon.Wpf.dll" />
+          <File Id="ControlzExDll"
+                Source="..\bin\Release\net10.0-windows\ControlzEx.dll" />
+          <File Id="MicrosoftXamlBehaviorsDll"
+                Source="..\bin\Release\net10.0-windows\Microsoft.Xaml.Behaviors.dll" />
+          <File Id="RuntimeConfig"
+                Source="..\bin\Release\net10.0-windows\GitProxyManager.runtimeconfig.json" />
+        </Component>
+
+        <!-- Uninstall Registry -->
+        <Component Id="Uninstaller" Guid="33333333-4444-5555-6666-777777777777">
+          <RegistryValue Root="HKCU"
+                         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\GitProxyManager"
+                         Name="DisplayName"
+                         Type="string"
+                         Value="Git Proxy Manager" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\GitProxyManager"
+                         Name="Publisher"
+                         Type="string"
+                         Value="GitProxyManager" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\GitProxyManager"
+                         Name="DisplayVersion"
+                         Type="string"
+                         Value="1.0.0" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\GitProxyManager"
+                         Name="InstallLocation"
+                         Type="string"
+                         Value="[INSTALLFOLDER]" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\GitProxyManager"
+                         Name="UninstallString"
+                         Type="string"
+                         Value="&quot;[System64Folder]msiexec.exe&quot; /x [ProductCode]" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\GitProxyManager"
+                         Name="NoModify"
+                         Type="integer"
+                         Value="1" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\GitProxyManager"
+                         Name="NoRepair"
+                         Type="integer"
+                         Value="1" />
+        </Component>
+
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Start Menu Shortcuts -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="GitProxyManager">
+        <Component Id="StartMenuShortcuts" Guid="22222222-3333-4444-5555-666666666666">
+          <Shortcut Id="StartMenuShortcut"
+                    Name="Git Proxy Manager"
+                    Description="Gestor de proxy para Git"
+                    Target="[INSTALLFOLDER]GitProxyManager.exe"
+                    WorkingDirectory="INSTALLFOLDER"
+                    Icon="AppIcon.exe" />
+          <Shortcut Id="UninstallShortcut"
+                    Name="Desinstalar Git Proxy Manager"
+                    Description="Desinstalar Git Proxy Manager"
+                    Target="[System64Folder]msiexec.exe"
+                    Arguments="/x [ProductCode]" />
+          <RemoveFolder Id="RemoveApplicationProgramsFolder"
+                        Directory="ApplicationProgramsFolder"
+                        On="uninstall" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\GitProxyManager"
+                         Name="installed"
+                         Type="integer"
+                         Value="1"
+                         KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Icon -->
+    <Icon Id="AppIcon.exe" SourceFile="..\bin\Release\net10.0-windows\GitProxyManager.exe" />
+
+    <!-- Features -->
+    <Feature Id="Main" Title="Git Proxy Manager" Level="1">
+      <ComponentRef Id="ApplicationFiles" />
+      <ComponentRef Id="StartMenuShortcuts" />
+      <ComponentRef Id="Uninstaller" />
+    </Feature>
+
+  </Package>
+</Wix>

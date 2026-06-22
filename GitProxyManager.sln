@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36414.22 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GitProxyManager", "GitProxyManager.csproj", "{8E467A8B-AB5E-83F1-A08A-265BE1769301}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8E467A8B-AB5E-83F1-A08A-265BE1769301}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E467A8B-AB5E-83F1-A08A-265BE1769301}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E467A8B-AB5E-83F1-A08A-265BE1769301}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E467A8B-AB5E-83F1-A08A-265BE1769301}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FA5F0EBF-658A-4DDD-83B8-11D4F8932812}
+	EndGlobalSection
+EndGlobal
