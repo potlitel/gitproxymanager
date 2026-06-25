@@ -8,15 +8,25 @@ namespace GitProxyManager.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private ProxyConfig _config = new();
-
-    [ObservableProperty]
-    private bool _isEnabled;
+    private bool _isUpdatingMaster;
 
     [ObservableProperty]
     private string _host = string.Empty;
 
     [ObservableProperty]
     private int _port = 3128;
+
+    [ObservableProperty]
+    private string _bypassList = string.Empty;
+
+    [ObservableProperty]
+    private bool _masterToggle;
+
+    [ObservableProperty]
+    private bool _isSystemEnabled;
+
+    [ObservableProperty]
+    private bool _isGitEnabled;
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
@@ -47,25 +57,19 @@ public partial class MainViewModel : ObservableObject
     private void LoadConfig()
     {
         var gitConfig = GitProxyService.ReadCurrentConfig();
+        var sysConfig = SystemProxyService.ReadCurrentConfig();
+        var savedConfig = ConfigService.Load();
 
-        if (gitConfig.IsEnabled)
-        {
-            _config = gitConfig;
-            IsEnabled = true;
-            Host = gitConfig.Host;
-            Port = gitConfig.Port;
-        }
-        else
-        {
-            _config = ConfigService.Load();
-            IsEnabled = _config.IsEnabled;
-            Host = _config.Host;
-            Port = _config.Port;
-        }
+        Host = !string.IsNullOrWhiteSpace(savedConfig.Host) ? savedConfig.Host : sysConfig.Host;
+        Port = savedConfig.Port != 3128 ? savedConfig.Port : sysConfig.Port;
+        BypassList = !string.IsNullOrWhiteSpace(savedConfig.BypassList) ? savedConfig.BypassList : sysConfig.BypassList;
+
+        IsSystemEnabled = sysConfig.SystemProxyEnabled;
+        IsGitEnabled = gitConfig.IsEnabled;
 
         CanToggle = !string.IsNullOrWhiteSpace(Host);
-        UpdateStatusMessage();
-        UpdateToggleLabel();
+        UpdateStatuses();
+        NotifyState();
     }
 
     [RelayCommand]
@@ -73,92 +77,132 @@ public partial class MainViewModel : ObservableObject
     {
         _config = new ProxyConfig
         {
-            IsEnabled = IsEnabled,
             Host = Host,
-            Port = Port
+            Port = Port,
+            BypassList = BypassList,
+            SystemProxyEnabled = IsSystemEnabled,
+            GitProxyEnabled = IsGitEnabled,
+            IsEnabled = IsSystemEnabled || IsGitEnabled
         };
 
-        if (IsEnabled && !string.IsNullOrWhiteSpace(Host))
-        {
-            GitProxyService.ApplyProxy(_config);
-            StatusMessage = $"Proxy activo: {Host}:{Port}";
-            StatusColor = "#4CAF50";
-        }
+        if (IsSystemEnabled && !string.IsNullOrWhiteSpace(Host))
+            SystemProxyService.ApplyProxy(Host, Port, BypassList);
         else
-        {
+            SystemProxyService.RemoveProxy();
+
+        if (IsGitEnabled && !string.IsNullOrWhiteSpace(Host))
+            GitProxyService.ApplyProxy(_config);
+        else
             GitProxyService.RemoveProxy();
-            StatusMessage = "Proxy desactivado";
-            StatusColor = "#888888";
-        }
 
         ConfigService.Save(_config);
-        UpdateToggleLabel();
-        NotifyTrayIcon();
+        UpdateStatuses();
+        NotifyState();
     }
 
     [RelayCommand]
     private void Reset()
     {
-        IsEnabled = false;
+        IsSystemEnabled = false;
+        IsGitEnabled = false;
+        MasterToggle = false;
         Host = string.Empty;
         Port = 3128;
+        BypassList = string.Empty;
         CanToggle = false;
+
+        SystemProxyService.RemoveProxy();
         GitProxyService.RemoveProxy();
         ConfigService.Save(new ProxyConfig());
+
         StatusMessage = "Configuración restablecida";
         StatusColor = "#FF9800";
-        UpdateToggleLabel();
-        NotifyTrayIcon();
-    }
-
-    [RelayCommand]
-    private void ShowWindow()
-    {
-        var window = new MainWindow();
-        window.Show();
+        UpdateStatuses();
+        NotifyState();
     }
 
     partial void OnHostChanged(string value)
     {
         CanToggle = !string.IsNullOrWhiteSpace(value);
-        if (!CanToggle && IsEnabled)
+        if (!CanToggle)
         {
-            IsEnabled = false;
+            IsSystemEnabled = false;
+            IsGitEnabled = false;
         }
-        UpdateStatusMessage();
+        UpdateStatuses();
     }
 
-    partial void OnIsEnabledChanged(bool value)
+    partial void OnIsSystemEnabledChanged(bool value)
     {
-        _config.IsEnabled = value;
-        UpdateStatusMessage();
-        UpdateToggleLabel();
-        NotifyTrayIcon();
+        if (_isUpdatingMaster) return;
+        UpdateMasterState();
+        UpdateStatuses();
     }
 
-    private void UpdateStatusMessage()
+    partial void OnIsGitEnabledChanged(bool value)
     {
-        if (IsEnabled && !string.IsNullOrWhiteSpace(Host))
+        if (_isUpdatingMaster) return;
+        UpdateMasterState();
+        UpdateStatuses();
+    }
+
+    partial void OnMasterToggleChanged(bool value)
+    {
+        _isUpdatingMaster = true;
+        IsSystemEnabled = value;
+        IsGitEnabled = value;
+        _isUpdatingMaster = false;
+        UpdateStatuses();
+    }
+
+    private void UpdateMasterState()
+    {
+        _isUpdatingMaster = true;
+        MasterToggle = IsSystemEnabled && IsGitEnabled;
+        _isUpdatingMaster = false;
+    }
+
+    private void UpdateStatuses()
+    {
+        if (IsSystemEnabled && !string.IsNullOrWhiteSpace(Host))
         {
-            StatusMessage = $"Proxy activo: {Host}:{Port}";
-            StatusColor = "#4CAF50";
-            CurrentProxyInfo = $"Configuración actual: {Host}:{Port}";
+            SystemStatusText = $"Activo → {Host}:{Port}";
+            SystemStatusColor = "#4CAF50";
         }
         else
         {
-            StatusMessage = "Proxy desactivado";
+            SystemStatusText = "Inactivo";
+            SystemStatusColor = "#888888";
+        }
+
+        if (IsGitEnabled && !string.IsNullOrWhiteSpace(Host))
+        {
+            GitStatusText = $"Activo → {Host}:{Port}";
+            GitStatusColor = "#4CAF50";
+        }
+        else
+        {
+            GitStatusText = "Inactivo";
+            GitStatusColor = "#888888";
+        }
+
+        if (IsSystemEnabled || IsGitEnabled)
+        {
+            var activeList = new List<string>();
+            if (IsSystemEnabled) activeList.Add("Sistema");
+            if (IsGitEnabled) activeList.Add("Git");
+            StatusMessage = $"{string.Join(" + ", activeList)} activo(s): {Host}:{Port}";
+            StatusColor = "#4CAF50";
+        }
+        else
+        {
+            StatusMessage = "Ambos proxies desactivados";
             StatusColor = "#888888";
-            CurrentProxyInfo = string.Empty;
         }
     }
 
-    private void UpdateToggleLabel()
+    private void NotifyState()
     {
-        ToggleLabel = IsEnabled ? "Proxy habilitado" : "Proxy deshabilitado";
-    }
-
-    private void NotifyTrayIcon()
-    {
-        ProxyStateService.NotifyStateChanged(IsEnabled, Host, Port);
+        ProxyStateService.NotifyStateChanged(IsSystemEnabled, IsGitEnabled, Host, Port);
     }
 }

@@ -29,18 +29,21 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <!-- Header -->
         <TextBlock Grid.Row="0" Text="Git Proxy Manager"
                    FontSize="22" FontWeight="Bold"
-                   Foreground="#89B4FA" Margin="0,0,0,20"/>
+                   Foreground="#89B4FA" Margin="0,0,0,16"/>
 
-        <!-- Toggle + Status -->
-        <Border x:Name="ToggleBorder" Grid.Row="1" Background="#313244" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+        <!-- Master Toggle -->
+        <Border x:Name="MasterBorder" Grid.Row="1" Background="#45475A" CornerRadius="8" Padding="16,14" Margin="0,0,0,12">
             <Border.RenderTransform>
-                <ScaleTransform x:Name="ToggleScale" ScaleX="1" ScaleY="1"/>
+                <ScaleTransform x:Name="MasterScale" ScaleX="1" ScaleY="1"/>
             </Border.RenderTransform>
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -139,14 +142,73 @@
                     </ToggleButton.Template>
                 </ToggleButton>
 
-                <Ellipse Grid.Column="2" Width="10" Height="10"
-                         VerticalAlignment="Center"
-                         Fill="{Binding StatusColor}"/>
+                <Ellipse Grid.Column="3" Width="8" Height="8"
+                         VerticalAlignment="Center" Margin="10,0,0,0"
+                         Fill="{Binding SystemStatusColor}"/>
+            </Grid>
+        </Border>
+
+        <!-- Git Proxy Toggle -->
+        <Border x:Name="GitBorder" Grid.Row="3" Background="#313244" CornerRadius="8" Padding="16,12" Margin="0,0,0,12">
+            <Border.RenderTransform>
+                <ScaleTransform x:Name="GitScale" ScaleX="1" ScaleY="1"/>
+            </Border.RenderTransform>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="🔧"
+                           FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Proxy de Git"
+                               FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                    <TextBlock Text="Solo operaciones git"
+                               FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <ToggleButton x:Name="GitToggleProxy" Grid.Column="2"
+                              IsChecked="{Binding IsGitEnabled}"
+                              IsEnabled="{Binding CanToggle}"
+                              Margin="12,0"
+                              MinWidth="46" MinHeight="24"
+                              VerticalAlignment="Center">
+                    <ToggleButton.Template>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border x:Name="toggleBorder"
+                                    CornerRadius="12" Padding="3"
+                                    Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked, Converter={StaticResource BoolToBrushConverter}}"
+                                    Cursor="Hand">
+                                <Border x:Name="toggleKnob"
+                                        Width="18" Height="18"
+                                        CornerRadius="9"
+                                        Background="#CDD6F4"
+                                        Margin="2"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="toggleKnob" Property="HorizontalAlignment" Value="Right"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="False">
+                                    <Setter TargetName="toggleKnob" Property="HorizontalAlignment" Value="Left"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </ToggleButton.Template>
+                </ToggleButton>
+
+                <Ellipse Grid.Column="3" Width="8" Height="8"
+                         VerticalAlignment="Center" Margin="10,0,0,0"
+                         Fill="{Binding GitStatusColor}"/>
             </Grid>
         </Border>
 
         <!-- Proxy Host + Port -->
-        <Border Grid.Row="2" Background="#313244" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+        <Border Grid.Row="4" Background="#313244" CornerRadius="8" Padding="16,12" Margin="0,0,0,10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -156,43 +218,78 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0" Text="Proxy:"
-                           VerticalAlignment="Center" FontSize="14"
-                           Foreground="#CDD6F4" Margin="0,0,10,0"/>
+                           VerticalAlignment="Center" FontSize="13"
+                           Foreground="#CDD6F4" Margin="0,0,8,0"/>
 
                 <TextBox Grid.Column="1"
                          Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}"
                          Background="#45475A" Foreground="#CDD6F4"
                          BorderBrush="#585B7A" BorderThickness="1"
-                         Padding="8,6" FontSize="13"
+                         Padding="8,5" FontSize="13"
                          VerticalContentAlignment="Center"/>
 
                 <TextBlock Grid.Column="2" Text="Puerto:"
-                           VerticalAlignment="Center" FontSize="14"
-                           Foreground="#CDD6F4" Margin="14,0,10,0"/>
+                           VerticalAlignment="Center" FontSize="13"
+                           Foreground="#CDD6F4" Margin="12,0,8,0"/>
 
                 <TextBox Grid.Column="3"
                          Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}"
                          Background="#45475A" Foreground="#CDD6F4"
                          BorderBrush="#585B7A" BorderThickness="1"
-                         Padding="8,6" FontSize="13"
+                         Padding="8,5" FontSize="13"
                          VerticalContentAlignment="Center"/>
             </Grid>
         </Border>
 
-        <!-- Current Proxy Info -->
-        <Border x:Name="ConfigInfoBorder" Grid.Row="3" Background="#181825" CornerRadius="8" Padding="16,10" Margin="0,0,0,16"
-                Visibility="{Binding CurrentProxyInfo, Converter={StaticResource StringToVisibilityConverter}}">
+        <!-- Bypass List -->
+        <Border Grid.Row="5" Background="#313244" CornerRadius="8" Padding="16,10" Margin="0,0,0,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Bypass (exceptos):"
+                           FontSize="12" Foreground="#A6ADC8" Margin="0,0,0,6"/>
+
+                <TextBox Grid.Row="1"
+                         Text="{Binding BypassList, UpdateSourceTrigger=PropertyChanged}"
+                         Background="#45475A" Foreground="#CDD6F4"
+                         BorderBrush="#585B7A" BorderThickness="1"
+                         Padding="8,6" FontSize="12"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         MinHeight="36"
+                         VerticalContentAlignment="Top"
+                         ToolTip="Separar con punto y coma (;)&#10;Ej: 192.168.52.*;*.minag.gob.cu"/>
+            </Grid>
+        </Border>
+
+        <!-- Info Panel -->
+        <Border x:Name="InfoBorder" Grid.Row="6" Background="#181825" CornerRadius="8" Padding="14,10" Margin="0,0,0,10">
             <Border.RenderTransform>
-                <ScaleTransform x:Name="ConfigScale" ScaleX="1" ScaleY="1"/>
+                <ScaleTransform x:Name="InfoScale" ScaleX="1" ScaleY="1"/>
             </Border.RenderTransform>
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="ℹ️ " FontSize="13" Foreground="#89B4FA"/>
-                <TextBlock Text="{Binding CurrentProxyInfo}" FontSize="13" Foreground="#A6ADC8"/>
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="🖥️ " FontSize="12" Foreground="#89B4FA"/>
+                    <TextBlock FontSize="12" Foreground="#A6ADC8">
+                        <Run Text="Sistema: " FontWeight="SemiBold"/>
+                        <Run Text="{Binding SystemStatusText, Mode=OneWay}"/>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="🔧 " FontSize="12" Foreground="#89B4FA"/>
+                    <TextBlock FontSize="12" Foreground="#A6ADC8">
+                        <Run Text="Git: " FontWeight="SemiBold"/>
+                        <Run Text="{Binding GitStatusText, Mode=OneWay}"/>
+                    </TextBlock>
+                </StackPanel>
             </StackPanel>
         </Border>
 
         <!-- Buttons -->
-        <Grid Grid.Row="4" Margin="0,0,0,16">
+        <Grid Grid.Row="7" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="12"/>
@@ -213,7 +310,7 @@
         </Grid>
 
         <!-- Status Bar -->
-        <Border Grid.Row="5" Background="#181825" CornerRadius="6" Padding="12,8"
+        <Border Grid.Row="8" Background="#181825" CornerRadius="6" Padding="12,8"
                 VerticalAlignment="Bottom">
             <StackPanel Orientation="Horizontal">
                 <Ellipse Width="8" Height="8" Fill="{Binding StatusColor}" Margin="0,0,8,0"/>
