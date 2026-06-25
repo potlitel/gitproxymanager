@@ -14,6 +14,7 @@
         Foreground="#CDD6F4">
 
     <mahApps:MetroWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
         <local:BoolToBrushConverter x:Key="BoolToBrushConverter"/>
         <local:BoolToHorizontalAlignmentConverter x:Key="BoolToHorizontalAlignmentConverter"/>
         <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
@@ -296,17 +297,35 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="0" Content="Aplicar"
+            <Button Grid.Column="0"
                     Command="{Binding ApplyCommand}"
+                    IsEnabled="{Binding IsApplying, Converter={x:Static local:InvertBoolConverter.Instance}}"
                     Background="#89B4FA" Foreground="#1E1E2E"
                     FontWeight="Bold" FontSize="13"
-                    Padding="0,8" Cursor="Hand"/>
+                    Padding="0,8" Cursor="Hand">
+                <Button.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock x:Name="ApplyText" Text="Aplicar" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ApplyLoading" Text=" ⏳" FontSize="11" VerticalAlignment="Center"
+                                   Visibility="{Binding IsApplying, Converter={StaticResource BoolToVisibility}}"/>
+                    </StackPanel>
+                </Button.Content>
+            </Button>
 
-            <Button Grid.Column="2" Content="Restablecer"
+            <Button Grid.Column="2"
                     Command="{Binding ResetCommand}"
+                    IsEnabled="{Binding IsResetting, Converter={x:Static local:InvertBoolConverter.Instance}}"
                     Background="#45475A" Foreground="#CDD6F4"
                     FontSize="13"
-                    Padding="0,8" Cursor="Hand"/>
+                    Padding="0,8" Cursor="Hand">
+                <Button.Content>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock x:Name="ResetText" Text="Restablecer" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ResetLoading" Text=" ⏳" FontSize="11" VerticalAlignment="Center"
+                                   Visibility="{Binding IsResetting, Converter={StaticResource BoolToVisibility}}"/>
+                    </StackPanel>
+                </Button.Content>
+            </Button>
         </Grid>
 
         <!-- Status Bar -->
@@ -317,6 +336,23 @@
                 <TextBlock Text="{Binding StatusMessage}"
                            FontSize="12" Foreground="#A6ADC8"/>
             </StackPanel>
+        </Border>
+
+        <!-- Toast Notification -->
+        <Border x:Name="ToastBorder"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                CornerRadius="8" Padding="20,10" Margin="0,0,0,50"
+                Visibility="{Binding ToastVisible, Converter={StaticResource BoolToVisibility}}"
+                RenderTransformOrigin="0.5,0.5"
+                Panel.ZIndex="100">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="ToastTranslate" Y="20"/>
+            </Border.RenderTransform>
+            <Border.Background>
+                <SolidColorBrush Color="{Binding ToastColor}"/>
+            </Border.Background>
+            <TextBlock Text="{Binding ToastMessage}"
+                       Foreground="White" FontSize="13" FontWeight="SemiBold"/>
         </Border>
     </Grid>
 </mahApps:MetroWindow>

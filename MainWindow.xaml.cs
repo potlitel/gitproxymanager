@@ -45,6 +45,9 @@ public partial class MainWindow : MetroWindow
             case nameof(MainViewModel.GitStatusText):
                 PulseScale(InfoScale);
                 break;
+            case nameof(MainViewModel.ToastVisible):
+                AnimateToast();
+                break;
         }
     }
 
@@ -65,5 +68,30 @@ public partial class MainWindow : MetroWindow
         };
         scale.BeginAnimation(ScaleTransform.ScaleXProperty, animDown);
         scale.BeginAnimation(ScaleTransform.ScaleYProperty, animDown);
+    }
+
+    private void AnimateToast()
+    {
+        if (_viewModel == null) return;
+
+        if (_viewModel.ToastVisible)
+        {
+            ToastTranslate.Y = 20;
+            ToastBorder.Opacity = 0;
+
+            var slideIn = new DoubleAnimation(20, 0, TimeSpan.FromMilliseconds(250))
+            {
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(250));
+
+            ToastTranslate.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slideIn);
+            ToastBorder.BeginAnimation(OpacityProperty, fadeIn);
+        }
+        else
+        {
+            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
+            ToastBorder.BeginAnimation(OpacityProperty, fadeOut);
+        }
     }
 }
