@@ -5,7 +5,7 @@
         xmlns:local="clr-namespace:GitProxyManager"
         xmlns:viewModel="clr-namespace:GitProxyManager.ViewModels"
         Title="Git Proxy Manager"
-        Height="560" Width="480"
+        Height="620" Width="480"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         ShowTitleBar="True"
