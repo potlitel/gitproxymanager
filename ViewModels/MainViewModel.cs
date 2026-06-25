@@ -28,10 +28,16 @@ public partial class MainViewModel : ObservableObject
     private bool _canToggle;
 
     [ObservableProperty]
-    private string _toggleLabel = "Proxy deshabilitado";
+    private string _systemStatusText = "Inactivo";
 
     [ObservableProperty]
-    private string _currentProxyInfo = string.Empty;
+    private string _gitStatusText = "Inactivo";
+
+    [ObservableProperty]
+    private string _systemStatusColor = "#888888";
+
+    [ObservableProperty]
+    private string _gitStatusColor = "#888888";
 
     public MainViewModel()
     {

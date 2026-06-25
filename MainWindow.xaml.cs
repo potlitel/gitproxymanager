@@ -30,13 +30,21 @@ public partial class MainWindow : MetroWindow
     {
         if (_viewModel == null) return;
 
-        if (e.PropertyName == nameof(MainViewModel.ToggleLabel))
+        switch (e.PropertyName)
         {
-            PulseScale(ToggleScale);
-        }
-        else if (e.PropertyName == nameof(MainViewModel.CurrentProxyInfo))
-        {
-            PulseScale(ConfigScale);
+            case nameof(MainViewModel.MasterToggle):
+                PulseScale(MasterScale);
+                break;
+            case nameof(MainViewModel.IsSystemEnabled):
+                PulseScale(SystemScale);
+                break;
+            case nameof(MainViewModel.IsGitEnabled):
+                PulseScale(GitScale);
+                break;
+            case nameof(MainViewModel.SystemStatusText):
+            case nameof(MainViewModel.GitStatusText):
+                PulseScale(InfoScale);
+                break;
         }
     }
 

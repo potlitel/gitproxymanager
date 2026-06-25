@@ -5,7 +5,7 @@
         xmlns:local="clr-namespace:GitProxyManager"
         xmlns:viewModel="clr-namespace:GitProxyManager.ViewModels"
         Title="Git Proxy Manager"
-        Height="320" Width="450"
+        Height="560" Width="480"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         ShowTitleBar="True"
@@ -49,27 +49,82 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="{Binding ToggleLabel}"
-                           VerticalAlignment="Center" FontSize="14" Foreground="#CDD6F4"/>
+                <TextBlock Grid.Column="0" Text="🔗"
+                           FontSize="18" VerticalAlignment="Center" Margin="0,0,12,0"/>
 
-                <ToggleButton x:Name="ToggleProxy" Grid.Column="1"
-                              IsChecked="{Binding IsEnabled}"
-                              IsEnabled="{Binding CanToggle}"
-                              Margin="12,0"
-                              MinWidth="50" MinHeight="26"
-                              HorizontalAlignment="Left"
+                <TextBlock Grid.Column="1" Text="Habilitar ambos"
+                           VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold"
+                           Foreground="#CDD6F4"/>
+
+                <ToggleButton x:Name="MasterToggleProxy" Grid.Column="2"
+                              IsChecked="{Binding MasterToggle}"
+                              MinWidth="60" MinHeight="30"
                               VerticalAlignment="Center">
                     <ToggleButton.Template>
                         <ControlTemplate TargetType="ToggleButton">
                             <Border x:Name="toggleBorder"
-                                    CornerRadius="13" Padding="3"
+                                    CornerRadius="15" Padding="3"
                                     Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked, Converter={StaticResource BoolToBrushConverter}}"
                                     Cursor="Hand">
                                 <Border x:Name="toggleKnob"
-                                        Width="20" Height="20"
-                                        CornerRadius="10"
+                                        Width="24" Height="24"
+                                        CornerRadius="12"
                                         Background="#CDD6F4"
-                                        HorizontalAlignment="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked, Converter={StaticResource BoolToHorizontalAlignmentConverter}}"
+                                        Margin="2"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter TargetName="toggleKnob" Property="HorizontalAlignment" Value="Right"/>
+                                </Trigger>
+                                <Trigger Property="IsChecked" Value="False">
+                                    <Setter TargetName="toggleKnob" Property="HorizontalAlignment" Value="Left"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </ToggleButton.Template>
+                </ToggleButton>
+            </Grid>
+        </Border>
+
+        <!-- System Proxy Toggle -->
+        <Border x:Name="SystemBorder" Grid.Row="2" Background="#313244" CornerRadius="8" Padding="16,12" Margin="0,0,0,10">
+            <Border.RenderTransform>
+                <ScaleTransform x:Name="SystemScale" ScaleX="1" ScaleY="1"/>
+            </Border.RenderTransform>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0" Text="🖥️"
+                           FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Proxy del sistema"
+                               FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                    <TextBlock Text="Windows (navegadores, etc.)"
+                               FontSize="11" Foreground="#A6ADC8" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <ToggleButton x:Name="SystemToggleProxy" Grid.Column="2"
+                              IsChecked="{Binding IsSystemEnabled}"
+                              IsEnabled="{Binding CanToggle}"
+                              Margin="12,0"
+                              MinWidth="46" MinHeight="24"
+                              VerticalAlignment="Center">
+                    <ToggleButton.Template>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border x:Name="toggleBorder"
+                                    CornerRadius="12" Padding="3"
+                                    Background="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=IsChecked, Converter={StaticResource BoolToBrushConverter}}"
+                                    Cursor="Hand">
+                                <Border x:Name="toggleKnob"
+                                        Width="18" Height="18"
+                                        CornerRadius="9"
+                                        Background="#CDD6F4"
                                         Margin="2"/>
                             </Border>
                             <ControlTemplate.Triggers>
