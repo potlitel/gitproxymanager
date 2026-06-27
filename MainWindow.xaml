@@ -5,7 +5,7 @@
         xmlns:local="clr-namespace:GitProxyManager"
         xmlns:viewModel="clr-namespace:GitProxyManager.ViewModels"
         Title="Git Proxy Manager"
-        Height="620" Width="480"
+        Height="660" Width="480"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         ShowTitleBar="True"
@@ -20,10 +20,11 @@
         <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
     </mahApps:MetroWindow.Resources>
 
-    <Grid Margin="24">
+    <Grid>
         <Grid.DataContext>
             <viewModel:MainViewModel/>
         </Grid.DataContext>
+        <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -337,14 +338,15 @@
                            FontSize="12" Foreground="#A6ADC8"/>
             </StackPanel>
         </Border>
+        </Grid>
 
-        <!-- Toast Notification -->
+        <!-- Toast Notification (overlay outside layout) -->
         <Border x:Name="ToastBorder"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom"
                 CornerRadius="8" Padding="20,10" Margin="0,0,0,50"
                 Visibility="{Binding ToastVisible, Converter={StaticResource BoolToVisibility}}"
                 RenderTransformOrigin="0.5,0.5"
-                Panel.ZIndex="100">
+                Panel.ZIndex="100" IsHitTestVisible="False">
             <Border.RenderTransform>
                 <TranslateTransform x:Name="ToastTranslate" Y="20"/>
             </Border.RenderTransform>

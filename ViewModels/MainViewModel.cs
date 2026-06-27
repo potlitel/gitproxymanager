@@ -189,12 +189,19 @@ public partial class MainViewModel : ObservableObject
     partial void OnIsGitEnabledChanged(bool value)
     {
         if (_isUpdatingMaster) return;
+        if (value)
+        {
+            _isUpdatingMaster = true;
+            IsSystemEnabled = true;
+            _isUpdatingMaster = false;
+        }
         UpdateMasterState();
         UpdateStatuses();
     }
 
     partial void OnMasterToggleChanged(bool value)
     {
+        if (_isUpdatingMaster) return;
         _isUpdatingMaster = true;
         IsSystemEnabled = value;
         IsGitEnabled = value;
