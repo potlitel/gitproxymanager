@@ -132,6 +132,9 @@
       <ComponentRef Id="Uninstaller" />
     </Feature>
 
+    <!-- License -->
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+
     <!-- UI Wizard (WiX v5 syntax) -->
     <ui:WixUI Id="WixUI_Minimal" InstallDirectory="INSTALLFOLDER" />
 
