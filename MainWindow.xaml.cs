@@ -15,6 +15,13 @@ public partial class MainWindow : MetroWindow
     {
         InitializeComponent();
         Loaded += MainWindow_Loaded;
+        Closing += MainWindow_Closing;
+    }
+
+    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        e.Cancel = true;
+        Hide();
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)

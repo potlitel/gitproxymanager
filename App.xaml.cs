@@ -100,6 +100,7 @@ public partial class App : Application
         {
             if (window is MainWindow mainWindow)
             {
+                mainWindow.Show();
                 mainWindow.Activate();
                 mainWindow.BringIntoView();
                 return;
