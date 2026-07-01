@@ -15,10 +15,10 @@ public static class SystemProxyService
         key.SetValue("ProxyEnable", 1, RegistryValueKind.DWord);
         key.SetValue("ProxyServer", $"{host}:{port}", RegistryValueKind.String);
 
-        if (!string.IsNullOrWhiteSpace(bypassList))
-            key.SetValue("ProxyOverride", bypassList, RegistryValueKind.String);
-        else
-            key.DeleteValue("ProxyOverride", throwOnMissingValue: false);
+        var finalBypass = string.IsNullOrWhiteSpace(bypassList)
+            ? "<local>"
+            : $"{bypassList};<local>";
+        key.SetValue("ProxyOverride", finalBypass, RegistryValueKind.String);
 
         RefreshInternetSettings();
     }
@@ -54,10 +54,22 @@ public static class SystemProxyService
             }
 
             var bypass = key.GetValue("ProxyOverride") as string;
-            config.BypassList = bypass ?? string.Empty;
+            config.BypassList = CleanBypassList(bypass);
         }
 
         return config;
+    }
+
+    private static string CleanBypassList(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
+
+        var parts = raw.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Trim())
+            .Where(p => p != "<local>" && p != "<-loopback>")
+            .ToList();
+
+        return string.Join(";", parts);
     }
 
     private static void RefreshInternetSettings()
