@@ -72,6 +72,15 @@ public static class SystemProxyService
         return string.Join(";", parts);
     }
 
+    public static string ReadBypassList()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(InternetSettingsKey);
+        if (key == null) return string.Empty;
+
+        var bypass = key.GetValue("ProxyOverride") as string;
+        return CleanBypassList(bypass);
+    }
+
     private static void RefreshInternetSettings()
     {
         const int optionInternetOptionPerConnectionOption = 75;

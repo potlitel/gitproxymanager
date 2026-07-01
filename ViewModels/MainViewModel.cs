@@ -82,10 +82,13 @@ public partial class MainViewModel : ObservableObject
         var gitConfig = GitProxyService.ReadCurrentConfig();
         var sysConfig = SystemProxyService.ReadCurrentConfig();
         var savedConfig = ConfigService.Load();
+        var registryBypass = SystemProxyService.ReadBypassList();
 
         Host = !string.IsNullOrWhiteSpace(savedConfig.Host) ? savedConfig.Host : sysConfig.Host;
         Port = savedConfig.Port != 3128 ? savedConfig.Port : sysConfig.Port;
-        BypassList = !string.IsNullOrWhiteSpace(savedConfig.BypassList) ? savedConfig.BypassList : sysConfig.BypassList;
+        BypassList = !string.IsNullOrWhiteSpace(savedConfig.BypassList)
+            ? savedConfig.BypassList
+            : registryBypass;
 
         IsSystemEnabled = sysConfig.SystemProxyEnabled;
         IsGitEnabled = gitConfig.IsEnabled;
