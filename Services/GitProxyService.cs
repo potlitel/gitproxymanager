@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using GitProxyManager.Models;
 
 namespace GitProxyManager.Services;
@@ -33,6 +34,67 @@ public static class GitProxyService
         }
 
         return config;
+    }
+
+    public static (bool isEnabled, string host, int port) ReadPollingState()
+    {
+        try
+    {
+        var homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var gitConfigPath = Path.Combine(homePath, ".gitconfig");
+
+        if (!File.Exists(gitConfigPath))
+            return (false, string.Empty, 3128);
+
+        var lines = File.ReadAllLines(gitConfigPath);
+        var inHttpSection = false;
+
+        foreach (var rawLine in lines)
+        {
+            var line = rawLine.Trim();
+
+            if (line.StartsWith("[") && line.Contains("http"))
+            {
+                inHttpSection = true;
+                continue;
+            }
+
+            if (line.StartsWith("[") && !line.Contains("http"))
+            {
+                inHttpSection = false;
+                continue;
+            }
+
+            if (inHttpSection && line.Contains("proxy"))
+            {
+                var eqIndex = line.IndexOf('=');
+                if (eqIndex > 0)
+                {
+                    var value = line[(eqIndex + 1)..].Trim().Trim('"');
+                    var cleaned = value.Replace("http://", "").Replace("https://", "");
+                    var parts = cleaned.Split(':');
+                    var host = parts.Length > 0 ? parts[0] : string.Empty;
+                    var port = parts.Length > 1 && int.TryParse(parts[1], out var p) ? p : 3128;
+                    return (true, host, port);
+                }
+            }
+        }
+
+        return (false, string.Empty, 3128);
+    }
+    catch
+    {
+        var httpProxy = RunGitConfigGet("http.proxy");
+        if (!string.IsNullOrWhiteSpace(httpProxy))
+        {
+            var cleaned = httpProxy.Replace("http://", "").Replace("https://", "");
+            var parts = cleaned.Split(':');
+            var host = parts.Length > 0 ? parts[0] : string.Empty;
+            var port = parts.Length > 1 && int.TryParse(parts[1], out var p) ? p : 3128;
+            return (true, host, port);
+        }
+        return (false, string.Empty, 3128);
+    }
     }
 
     private static void RunGitConfig(string key, string value)

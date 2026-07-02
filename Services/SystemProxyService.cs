@@ -60,7 +60,7 @@ public static class SystemProxyService
         return config;
     }
 
-    private static string CleanBypassList(string? raw)
+    public static string CleanBypassList(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
 
@@ -79,6 +79,32 @@ public static class SystemProxyService
 
         var bypass = key.GetValue("ProxyOverride") as string;
         return CleanBypassList(bypass);
+    }
+
+    public static (bool isEnabled, string host, int port, string bypassList) ReadPollingState()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(InternetSettingsKey);
+        if (key == null) return (false, string.Empty, 3128, string.Empty);
+
+        var proxyEnable = key.GetValue("ProxyEnable");
+        var isEnabled = proxyEnable is int val && val == 1;
+
+        var host = string.Empty;
+        var port = 3128;
+
+        var proxyServer = key.GetValue("ProxyServer") as string;
+        if (!string.IsNullOrWhiteSpace(proxyServer))
+        {
+            var cleaned = proxyServer.Replace("http://", "").Replace("https://", "");
+            var parts = cleaned.Split(':');
+            host = parts.Length > 0 ? parts[0] : string.Empty;
+            port = parts.Length > 1 && int.TryParse(parts[1], out var p) ? p : 3128;
+        }
+
+        var rawBypass = key.GetValue("ProxyOverride") as string;
+        var bypassList = CleanBypassList(rawBypass);
+
+        return (isEnabled, host, port, bypassList);
     }
 
     private static void RefreshInternetSettings()

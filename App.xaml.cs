@@ -84,12 +84,14 @@ public partial class App : Application
 
         ProxyStateService.ProxyStateChanged += OnProxyStateChanged;
 
+        SystemStatePoller.Start();
+
         var sysConfig = SystemProxyService.ReadCurrentConfig();
         var gitConfig = GitProxyService.ReadCurrentConfig();
         UpdateTrayIcon(sysConfig.SystemProxyEnabled, gitConfig.IsEnabled, sysConfig.Host, sysConfig.Port);
     }
 
-    private void OnProxyStateChanged(bool isSystemEnabled, bool isGitEnabled, string host, int port)
+    private void OnProxyStateChanged(bool isSystemEnabled, bool isGitEnabled, string host, int port, string bypassList)
     {
         UpdateTrayIcon(isSystemEnabled, isGitEnabled, host, port);
     }
@@ -199,6 +201,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        SystemStatePoller.Stop();
         ProxyStateService.ProxyStateChanged -= OnProxyStateChanged;
         _trayIcon?.Dispose();
         base.OnExit(e);

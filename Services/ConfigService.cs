@@ -7,7 +7,7 @@ namespace GitProxyManager.Services;
 public static class ConfigService
 {
     private static readonly string ConfigPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "GitProxyManager",
         "config.json");
 

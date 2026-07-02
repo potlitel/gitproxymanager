@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -10,6 +11,7 @@ public partial class MainViewModel : ObservableObject
 {
     private ProxyConfig _config = new();
     private bool _isUpdatingMaster;
+    private bool _isExternalUpdate;
     private readonly DispatcherTimer _toastTimer;
 
     [ObservableProperty]
@@ -74,6 +76,7 @@ public partial class MainViewModel : ObservableObject
             ToastVisible = false;
             _toastTimer.Stop();
         };
+        ProxyStateService.ProxyStateChanged += OnExternalStateChanged;
         LoadConfig();
     }
 
@@ -184,14 +187,14 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsSystemEnabledChanged(bool value)
     {
-        if (_isUpdatingMaster) return;
+        if (_isUpdatingMaster || _isExternalUpdate) return;
         UpdateMasterState();
         UpdateStatuses();
     }
 
     partial void OnIsGitEnabledChanged(bool value)
     {
-        if (_isUpdatingMaster) return;
+        if (_isUpdatingMaster || _isExternalUpdate) return;
         if (value)
         {
             _isUpdatingMaster = true;
@@ -204,7 +207,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnMasterToggleChanged(bool value)
     {
-        if (_isUpdatingMaster) return;
+        if (_isUpdatingMaster || _isExternalUpdate) return;
         _isUpdatingMaster = true;
         IsSystemEnabled = value;
         IsGitEnabled = value;
@@ -260,6 +263,55 @@ public partial class MainViewModel : ObservableObject
 
     private void NotifyState()
     {
-        ProxyStateService.NotifyStateChanged(IsSystemEnabled, IsGitEnabled, Host, Port);
+        ProxyStateService.NotifyStateChanged(IsSystemEnabled, IsGitEnabled, Host, Port, BypassList);
+    }
+
+    private static readonly string _logPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "GitProxyManager",
+        "poller.log");
+
+    private static void LogViewModel(string message)
+    {
+        try { File.AppendAllText(_logPath, $"[VM] {message}{Environment.NewLine}"); } catch { }
+    }
+
+    private void OnExternalStateChanged(bool isSystemEnabled, bool isGitEnabled, string host, int port, string bypassList)
+    {
+        LogViewModel($"RECEIVED: sys={isSystemEnabled} git={isGitEnabled} host={host}:{port} bypass={bypassList} | _isExternalUpdate={_isExternalUpdate} | current: sys={IsSystemEnabled} git={IsGitEnabled}");
+        if (_isExternalUpdate) return;
+        _isExternalUpdate = true;
+
+        var changed = new List<string>();
+
+        if (IsSystemEnabled != isSystemEnabled)
+            changed.Add(isSystemEnabled ? "Sistema activado" : "Sistema desactivado");
+
+        if (IsGitEnabled != isGitEnabled)
+            changed.Add(isGitEnabled ? "Git activado" : "Git desactivado");
+
+        if (!string.IsNullOrWhiteSpace(host) && Host != host)
+            changed.Add($"Host: {host}");
+
+        if (Port != port)
+            changed.Add($"Puerto: {port}");
+
+        if (BypassList != bypassList)
+            changed.Add("Bypass actualizado");
+
+        IsSystemEnabled = isSystemEnabled;
+        IsGitEnabled = isGitEnabled;
+        Host = host;
+        Port = port;
+        BypassList = bypassList;
+
+        CanToggle = !string.IsNullOrWhiteSpace(Host);
+        UpdateMasterState();
+        UpdateStatuses();
+
+        if (changed.Count > 0)
+            ShowToast($"Cambios detectados: {string.Join(", ", changed)}", "#2196F3");
+
+        _isExternalUpdate = false;
     }
 }

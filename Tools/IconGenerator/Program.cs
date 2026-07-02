@@ -1,7 +1,9 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 
 class Program
 {
@@ -13,8 +15,8 @@ class Program
         string inactivePath = Path.Combine(outputDir, "app-icon.ico");
         string activePath = Path.Combine(outputDir, "app-icon-active.ico");
 
-        GenerateIcon(inactivePath, Color.FromArgb(137, 180, 250), "inactive");
-        GenerateIcon(activePath, Color.FromArgb(166, 227, 161), "active");
+        GenerateIcon(inactivePath, inactive: true);
+        GenerateIcon(activePath, inactive: false);
 
         var inactiveInfo = new FileInfo(inactivePath);
         var activeInfo = new FileInfo(activePath);
@@ -23,141 +25,160 @@ class Program
         Console.WriteLine($"Generated: {activePath} ({activeInfo.Length} bytes)");
     }
 
-    static void GenerateIcon(string path, Color circleColor, string label)
+    static void GenerateIcon(string path, bool inactive)
     {
-        int[] sizes = [16, 32];
-        byte[][] imageData = new byte[sizes.Length][];
+        int[] sizes = [16, 32, 48, 64, 128, 256];
+        byte[][] pngData = new byte[sizes.Length][];
 
         for (int i = 0; i < sizes.Length; i++)
         {
-            imageData[i] = RenderIconBitmap(sizes[i], circleColor);
+            using var bmp = RenderIconBitmap(sizes[i], inactive);
+            using var ms = new MemoryStream();
+            bmp.Save(ms, ImageFormat.Png);
+            pngData[i] = ms.ToArray();
         }
 
-        WriteIcoFile(path, sizes, imageData);
-        Console.WriteLine($"  [{label}] Wrote {sizes.Length} sizes: {string.Join(", ", sizes.Select((s, i) => $"{s}x{s}={imageData[i].Length}B"))}");
+        WriteIcoPng(path, sizes, pngData);
+        Console.WriteLine($"  [{(inactive ? "inactive" : "active")}] Wrote {sizes.Length} sizes: {string.Join(", ", sizes.Select((s, i) => $"{s}x{s}={pngData[i].Length}B"))}");
     }
 
-    static byte[] RenderIconBitmap(int size, Color circleColor)
+    static Bitmap RenderIconBitmap(int size, bool inactive)
     {
-        using var bmp = new Bitmap(size, size);
+        var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
         using var g = Graphics.FromImage(bmp);
 
         g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+        g.CompositingQuality = CompositingQuality.HighQuality;
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
         g.Clear(Color.Transparent);
 
-        int padding = Math.Max(1, size / 8);
-        int diameter = size - (padding * 2);
-        int cx = size / 2;
-        int cy = size / 2;
+        float scale = size / 256f;
+        g.ScaleTransform(scale, scale);
 
-        using var brush = new SolidBrush(circleColor);
-        g.FillEllipse(brush, padding, padding, diameter, diameter);
+        Color bgColor = inactive
+            ? Color.FromArgb(69, 71, 90)
+            : Color.FromArgb(69, 71, 90);
+        Color bgColorLight = inactive
+            ? Color.FromArgb(88, 91, 122)
+            : Color.FromArgb(88, 91, 122);
+        Color nodeColor = inactive
+            ? Color.FromArgb(137, 180, 250)
+            : Color.FromArgb(166, 227, 161);
+        Color lineColor = inactive
+            ? Color.FromArgb(180, 190, 230)
+            : Color.FromArgb(180, 210, 170);
 
-        using var borderPen = new Pen(Color.FromArgb(80, 0, 0, 0), Math.Max(1, size / 16));
-        g.DrawEllipse(borderPen, padding, padding, diameter, diameter);
+        var bgRect = new RectangleF(8, 8, 240, 240);
+        float cornerRadius = 48f;
 
-        return BitmapToBgraBytes(bmp, size);
+        // Shadow
+        using (var shadowPath = CreateRoundedRectPath(new RectangleF(12, 14, 240, 240), cornerRadius))
+        using (var shadowBrush = new SolidBrush(Color.FromArgb(40, 0, 0, 0)))
+            g.FillPath(shadowBrush, shadowPath);
+
+        // Background gradient
+        using (var bgPath = CreateRoundedRectPath(bgRect, cornerRadius))
+        using (var bgBrush = new LinearGradientBrush(bgRect, bgColorLight, bgColor, LinearGradientMode.Vertical))
+            g.FillPath(bgBrush, bgPath);
+
+        // Border
+        using (var bgPath = CreateRoundedRectPath(bgRect, cornerRadius))
+        using (var borderPen = new Pen(Color.FromArgb(60, 0, 0, 0), 2f))
+            g.DrawPath(borderPen, bgPath);
+
+        // Network nodes
+        float centerX = 128f, centerY = 128f;
+        float nodeRadius = 24f, lineThickness = 6f;
+
+        var nodeTop = new PointF(centerX, centerY - 52f);
+        var nodeLeft = new PointF(centerX - 48f, centerY + 32f);
+        var nodeRight = new PointF(centerX + 48f, centerY + 32f);
+
+        using (var linePen = new Pen(lineColor, lineThickness) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+        {
+            g.DrawLine(linePen, nodeTop, nodeLeft);
+            g.DrawLine(linePen, nodeTop, nodeRight);
+            g.DrawLine(linePen, nodeLeft, nodeRight);
+        }
+
+        DrawNode(g, nodeLeft, nodeRadius, nodeColor);
+        DrawNode(g, nodeRight, nodeRadius, nodeColor);
+        DrawNode(g, nodeTop, nodeRadius * 1.15f, nodeColor);
+
+        DrawInnerDot(g, nodeLeft, nodeRadius * 0.35f, bgColor);
+        DrawInnerDot(g, nodeRight, nodeRadius * 0.35f, bgColor);
+        DrawInnerDot(g, nodeTop, nodeRadius * 0.35f * 1.15f, bgColor);
+
+        return bmp;
     }
 
-    static byte[] BitmapToBgraBytes(Bitmap bmp, int size)
+    static void DrawNode(Graphics g, PointF center, float radius, Color fillColor)
     {
-        var bits = bmp.LockBits(new Rectangle(0, 0, size, size),
-            System.Drawing.Imaging.ImageLockMode.ReadOnly,
-            System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        float x = center.X - radius, y = center.Y - radius, d = radius * 2f;
 
-        int byteCount = bits.Stride * bits.Height;
-        byte[] pixels = new byte[byteCount];
-        System.Runtime.InteropServices.Marshal.Copy(bits.Scan0, pixels, 0, byteCount);
-        bmp.UnlockBits(bits);
-        return pixels;
+        using var glowBrush = new SolidBrush(Color.FromArgb(30, fillColor));
+        g.FillEllipse(glowBrush, x - 4f, y - 4f, d + 8f, d + 8f);
+
+        using var brush = new SolidBrush(fillColor);
+        g.FillEllipse(brush, x, y, d, d);
+
+        using var pen = new Pen(Color.FromArgb(120, 255, 255, 255), 2f);
+        g.DrawEllipse(pen, x, y, d, d);
     }
 
-    static void WriteIcoFile(string path, int[] sizes, byte[][] imageData)
+    static void DrawInnerDot(Graphics g, PointF center, float radius, Color color)
+    {
+        float x = center.X - radius, y = center.Y - radius, d = radius * 2f;
+        using var brush = new SolidBrush(color);
+        g.FillEllipse(brush, x, y, d, d);
+    }
+
+    static GraphicsPath CreateRoundedRectPath(RectangleF rect, float radius)
+    {
+        var path = new GraphicsPath();
+        float d = radius * 2f;
+        path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+        path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+        path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+        path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+
+    static void WriteIcoPng(string path, int[] sizes, byte[][] pngData)
     {
         using var fs = new FileStream(path, FileMode.Create);
         using var bw = new BinaryWriter(fs);
 
         // ICO header
-        bw.Write((ushort)0);          // reserved
-        bw.Write((ushort)1);          // type = 1 (ICO)
+        bw.Write((ushort)0);           // reserved
+        bw.Write((ushort)1);           // type = ICO
         bw.Write((ushort)sizes.Length); // image count
 
-        // Each BMP image entry in ICO:
-        // BITMAPINFOHEADER (40 bytes) + AND mask + XOR data
-        // For 32bpp with alpha, AND mask is still required but can be all zeros
+        int headerSize = 6;
+        int dirEntrySize = 16 * sizes.Length;
+        int offset = headerSize + dirEntrySize;
 
-        int headerSize = 6;                                 // ICO header
-        int dirEntrySize = 16 * sizes.Length;               // directory entries
-        int bmpHeaderSize = 40;                             // BITMAPINFOHEADER per image
-
-        // Calculate sizes and offsets
-        int[] bmpDataSizes = new int[sizes.Length];
-        int[] bmpDataOffsets = new int[sizes.Length];
-
-        int currentOffset = headerSize + dirEntrySize;
-
+        // Directory entries
         for (int i = 0; i < sizes.Length; i++)
         {
             int s = sizes[i];
-            int andMaskRowBytes = ((s + 31) / 32) * 4;
-            int andMaskSize = andMaskRowBytes * s;
-            int xorDataSize = s * s * 4; // 32bpp BGRA
-            bmpDataSizes[i] = bmpHeaderSize + andMaskSize + xorDataSize;
-            bmpDataOffsets[i] = currentOffset;
-            currentOffset += bmpDataSizes[i];
+            bw.Write((byte)(s >= 256 ? 0 : (byte)s)); // width
+            bw.Write((byte)(s >= 256 ? 0 : (byte)s)); // height
+            bw.Write((byte)0);  // color palette
+            bw.Write((byte)0);  // reserved
+            bw.Write((ushort)1); // color planes
+            bw.Write((ushort)32); // bits per pixel
+            bw.Write((uint)pngData[i].Length); // image data size
+            bw.Write((uint)offset); // offset to image data
+            offset += pngData[i].Length;
         }
 
-        // Write directory entries
+        // PNG image data
         for (int i = 0; i < sizes.Length; i++)
         {
-            int s = sizes[i];
-            byte widthByte = (byte)(s >= 256 ? 0 : s);
-            byte heightByte = (byte)(s >= 256 ? 0 : s);
-
-            bw.Write(widthByte);              // width
-            bw.Write(heightByte);             // height
-            bw.Write((byte)0);               // color count (0 for 32bpp)
-            bw.Write((byte)0);               // reserved
-            bw.Write((ushort)1);             // color planes
-            bw.Write((ushort)32);            // bits per pixel
-            bw.Write(bmpDataSizes[i]);       // image data size
-            bw.Write(bmpDataOffsets[i]);     // offset to image data
-        }
-
-        // Write image data
-        for (int i = 0; i < sizes.Length; i++)
-        {
-            int s = sizes[i];
-            byte[] pixels = imageData[i];
-
-            // BITMAPINFOHEADER (40 bytes)
-            bw.Write((uint)40);                    // biSize
-            bw.Write((uint)s);                     // biWidth
-            bw.Write((uint)(s * 2));               // biHeight (doubled for ICO: XOR + AND)
-            bw.Write((ushort)1);                   // biPlanes
-            bw.Write((ushort)32);                  // biBitCount
-            bw.Write((uint)0);                     // biCompression (BI_RGB)
-            bw.Write((uint)(s * s * 4));           // biSizeImage
-            bw.Write((uint)0);                     // biXPelsPerMeter
-            bw.Write((uint)0);                     // biYPelsPerMeter
-            bw.Write((uint)0);                     // biClrUsed
-            bw.Write((uint)0);                     // biClrImportant
-
-            // AND mask (1 bit per pixel, rows padded to 4 bytes)
-            int andMaskRowBytesLocal = ((s + 31) / 32) * 4;
-            byte[] andMask = new byte[andMaskRowBytesLocal * s];
-            // All zeros = fully opaque (alpha channel handles transparency)
-            bw.Write(andMask);
-
-            // XOR data: bottom-up BGRA pixels
-            // BMP stores rows bottom-up, but our pixel data is top-down
-            // We need to flip vertically
-            int rowBytes = s * 4;
-            for (int y = s - 1; y >= 0; y--)
-            {
-                int srcRowStart = y * rowBytes;
-                bw.Write(pixels, srcRowStart, rowBytes);
-            }
+            bw.Write(pngData[i]);
         }
 
         bw.Flush();
