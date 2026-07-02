@@ -37,11 +37,11 @@ public class ResetProxyFlowTests : IDisposable
         await _viewModel.ResetCommand.ExecuteAsync(null);
 
         var config = ConfigService.Load();
-        config.Host.Should().BeEmpty();
+        config.Host.Should().Be("172.16.65.62");
         config.Port.Should().Be(3128);
         config.SystemProxyEnabled.Should().BeFalse();
         config.GitProxyEnabled.Should().BeFalse();
-        config.BypassList.Should().BeEmpty();
+        config.BypassList.Should().Be("192.168.52.*;*.minag.gob.cu;https://172.16.112.3:8006");
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class ResetProxyFlowTests : IDisposable
     public async Task Reset_TrayIconUpdated()
     {
         var stateUpdated = false;
-        Action<bool, bool, string, int> handler = (_, _, _, _) => stateUpdated = true;
+        Action<bool, bool, string, int, string> handler = (_, _, _, _, _) => stateUpdated = true;
         ProxyStateService.ProxyStateChanged += handler;
 
         await _viewModel.ResetCommand.ExecuteAsync(null);

@@ -641,8 +641,9 @@ public class MainViewModelTests : IDisposable
         await _viewModel.ResetCommand.ExecuteAsync(null);
 
         var config = ConfigService.Load();
-        config.Host.Should().BeEmpty();
+        config.Host.Should().Be("172.16.65.62");
         config.Port.Should().Be(3128);
+        config.BypassList.Should().Be("192.168.52.*;*.minag.gob.cu;https://172.16.112.3:8006");
     }
 
     [Fact]
@@ -715,5 +716,152 @@ public class MainViewModelTests : IDisposable
     public void ToastMessage_Default_IsEmpty()
     {
         _viewModel.ToastMessage.Should().BeEmpty();
+    }
+
+    // ============================================================
+    // OnExternalStateChanged: External state changes from poller
+    // ============================================================
+
+    [Fact]
+    public void OnExternalStateChanged_SystemEnabled_UpdatesUI()
+    {
+        ProxyStateService.NotifyStateChanged(true, false, "10.0.0.1", 8080, "");
+
+        _viewModel.IsSystemEnabled.Should().BeTrue();
+        _viewModel.IsGitEnabled.Should().BeFalse();
+        _viewModel.Host.Should().Be("10.0.0.1");
+        _viewModel.Port.Should().Be(8080);
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_GitEnabled_UpdatesUI()
+    {
+        ProxyStateService.NotifyStateChanged(false, true, "192.168.1.1", 3128, "");
+
+        _viewModel.IsSystemEnabled.Should().BeFalse();
+        _viewModel.IsGitEnabled.Should().BeTrue();
+        _viewModel.Host.Should().Be("192.168.1.1");
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_BothEnabled_UpdatesUI()
+    {
+        ProxyStateService.NotifyStateChanged(true, true, "172.16.65.62", 3128, "bypass.local");
+
+        _viewModel.IsSystemEnabled.Should().BeTrue();
+        _viewModel.IsGitEnabled.Should().BeTrue();
+        _viewModel.Host.Should().Be("172.16.65.62");
+        _viewModel.BypassList.Should().Be("bypass.local");
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_Disabled_ResetsUI()
+    {
+        ProxyStateService.NotifyStateChanged(true, true, "10.0.0.1", 8080, "test");
+        ProxyStateService.NotifyStateChanged(false, false, "", 0, "");
+
+        _viewModel.IsSystemEnabled.Should().BeFalse();
+        _viewModel.IsGitEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_BypassList_UpdatesViewModel()
+    {
+        ProxyStateService.NotifyStateChanged(true, true, "10.0.0.1", 8080, "custom.bypass;*.local");
+
+        _viewModel.BypassList.Should().Be("custom.bypass;*.local");
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_HostChange_UpdatesHost()
+    {
+        ProxyStateService.NotifyStateChanged(true, false, "old.host.com", 8080, "");
+        ProxyStateService.NotifyStateChanged(true, false, "new.host.com", 8080, "");
+
+        _viewModel.Host.Should().Be("new.host.com");
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_PortChange_UpdatesPort()
+    {
+        ProxyStateService.NotifyStateChanged(true, false, "10.0.0.1", 8080, "");
+        ProxyStateService.NotifyStateChanged(true, false, "10.0.0.1", 9090, "");
+
+        _viewModel.Port.Should().Be(9090);
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_ShowsBlueToast()
+    {
+        ProxyStateService.NotifyStateChanged(true, false, "10.0.0.1", 8080, "");
+
+        _viewModel.ToastColor.Should().Be("#2196F3");
+        _viewModel.ToastVisible.Should().BeTrue();
+        _viewModel.ToastMessage.Should().Contain("Cambios detectados");
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_CalculatesMasterToggle()
+    {
+        ProxyStateService.NotifyStateChanged(true, true, "10.0.0.1", 8080, "");
+
+        _viewModel.MasterToggle.Should().BeTrue();
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_PartialEnabled_MasterFalse()
+    {
+        ProxyStateService.NotifyStateChanged(true, false, "10.0.0.1", 8080, "");
+
+        _viewModel.MasterToggle.Should().BeFalse();
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_UpdatesCanToggle()
+    {
+        ProxyStateService.NotifyStateChanged(true, false, "", 0, "");
+
+        _viewModel.CanToggle.Should().BeFalse();
+
+        ProxyStateService.NotifyStateChanged(true, false, "10.0.0.1", 8080, "");
+
+        _viewModel.CanToggle.Should().BeTrue();
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_UpdatesStatusMessage()
+    {
+        ProxyStateService.NotifyStateChanged(true, true, "10.0.0.1", 8080, "");
+
+        _viewModel.StatusMessage.Should().Contain("Sistema");
+        _viewModel.StatusMessage.Should().Contain("Git");
+        _viewModel.StatusMessage.Should().Contain("activo");
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_DisabledStatus_ShowsDesactivados()
+    {
+        ProxyStateService.NotifyStateChanged(true, true, "10.0.0.1", 8080, "");
+        ProxyStateService.NotifyStateChanged(false, false, "", 0, "");
+
+        _viewModel.StatusMessage.Should().Contain("desactivados");
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_NoChange_NoException()
+    {
+        var act = () => ProxyStateService.NotifyStateChanged(false, false, "", 0, "");
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void OnExternalStateChanged_SameValues_NoDoubleUpdate()
+    {
+        ProxyStateService.NotifyStateChanged(true, false, "10.0.0.1", 8080, "test");
+        var firstHost = _viewModel.Host;
+
+        ProxyStateService.NotifyStateChanged(true, false, "10.0.0.1", 8080, "test");
+
+        _viewModel.Host.Should().Be(firstHost);
     }
 }

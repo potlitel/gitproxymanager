@@ -142,4 +142,51 @@ public class GitProxyServiceTests
 
         GitProxyService.RemoveProxy();
     }
+
+    // ============================================================
+    // ReadPollingState
+    // ============================================================
+
+    [Fact]
+    public void ReadPollingState_ReturnsTuple()
+    {
+        var (isEnabled, host, port) = GitProxyService.ReadPollingState();
+
+        host.Should().NotBeNull();
+        port.Should().BeInRange(0, 65535);
+    }
+
+    [Fact]
+    public void ReadPollingState_GitConfigExists_ReturnsValidState()
+    {
+        var homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var gitConfigPath = Path.Combine(homePath, ".gitconfig");
+
+        var (isEnabled, host, port) = GitProxyService.ReadPollingState();
+
+        if (File.Exists(gitConfigPath))
+        {
+            var lines = File.ReadAllLines(gitConfigPath);
+            var hasHttpProxy = lines.Any(l => l.Contains("proxy") && l.Contains("="));
+
+            if (hasHttpProxy)
+            {
+                isEnabled.Should().BeTrue();
+                host.Should().NotBeEmpty();
+            }
+        }
+
+        port.Should().BeInRange(0, 65535);
+    }
+
+    [Fact]
+    public void ReadPollingState_ConsecutiveCalls_Consistent()
+    {
+        var state1 = GitProxyService.ReadPollingState();
+        var state2 = GitProxyService.ReadPollingState();
+
+        state1.isEnabled.Should().Be(state2.isEnabled);
+        state1.host.Should().Be(state2.host);
+        state1.port.Should().Be(state2.port);
+    }
 }

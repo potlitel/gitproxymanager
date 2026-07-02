@@ -94,7 +94,7 @@ public class ApplyProxyFlowTests : IDisposable
     public async Task Apply_TrayIconStateUpdated()
     {
         var stateUpdated = false;
-        Action<bool, bool, string, int> handler = (_, _, _, _) => stateUpdated = true;
+        Action<bool, bool, string, int, string> handler = (_, _, _, _, _) => stateUpdated = true;
         ProxyStateService.ProxyStateChanged += handler;
 
         _viewModel.Host = "192.168.1.100";
