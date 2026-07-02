@@ -71,6 +71,7 @@
 - **⚡ Loading** - Indicador de progreso en botones
 - **🔔 Toast** - Notificaciones de confirmación
 - **🎯 Animaciones** - PulseScale en cada interacción
+- **🔽 Minimizar al tray** - Botón X oculta la ventana al system tray en vez de cerrar la app
 
 ### 🔗 Lógica de Dependencia
 
@@ -322,6 +323,7 @@ public static class SystemProxyService
     public static void ApplyProxy(string host, int port, string bypassList);
     public static void RemoveProxy();
     public static ProxyConfig ReadCurrentConfig();
+    public static string ReadBypassList();
 }
 ```
 
@@ -332,6 +334,13 @@ public static class SystemProxyService
 | `ProxyEnable` | `0` \| `1` | Activa/desactiva el proxy |
 | `ProxyServer` | `"host:port"` | Dirección del proxy |
 | `ProxyOverride` | `"lista;bypass"` | Direcciones exceptuadas |
+
+| Método | Descripción |
+|:------:|:------------|
+| `ApplyProxy()` | Aplica proxy al registro y siempre añade `<local>` al final de ProxyOverride (equivalente al checkbox de Windows "No usar proxy para direcciones locales") |
+| `RemoveProxy()` | Desactiva el proxy en el registro |
+| `ReadCurrentConfig()` | Lee host, puerto, estado y bypass del registro (solo si ProxyEnable=1) |
+| `ReadBypassList()` | Lee ProxyOverride del registro independientemente de si el proxy está activo, y limpia `<local>` y `<-loopback>` |
 
 ---
 
@@ -459,7 +468,7 @@ dotnet run
 
 | Componente | Descripción |
 |:----------:|:------------|
-| 📦 **App** | Ejecutable + DLLs en `Program Files\GitProxyManager` |
+| 📦 **App** | Ejecutable + DLLs en `LocalAppData\GitProxyManager` |
 | 🔗 **Start Menu** | Acceso directo + Desinstalar en Menú Inicio |
 | 📋 **Registry** | Entradas de desinstalación en Windows |
 
@@ -488,6 +497,8 @@ C:\dev\GitProxyManager\installer\bin\Release\GitProxyManager-v1.0.0-Setup.msi
 - ✅ **Actualización automática** - Detecta versiones previas
 - ✅ **PerUser** - No requiere permisos de administrador
 - ✅ **Icono personalizado** - Icono representativo de proxy/red
+- ✅ **Licencia MIT** - Texto de licencia mostrado durante la instalación (`License.rtf`)
+- ✅ **Build sin warnings** - Warnings ICE91 suprimidos via `SuppressIces`
 
 ---
 
@@ -538,6 +549,18 @@ C:\dev\GitProxyManager\installer\bin\Release\GitProxyManager-v1.0.0-Setup.msi
 | 🟢 Verde | Ambos proxies activos |
 | 🟡 Parcial | Solo un proxy activo |
 | ⚪ Gris | Ningún proxy activo |
+
+### 🔽 Minimizar al Tray
+
+Al hacer clic en el botón **X** de la ventana, la app **no se cierra** sino que se oculta al system tray. Para restaurarla:
+
+| Acción | Resultado |
+|:-------|:----------|
+| Doble clic en el icono del tray | Restaura la ventana |
+| Clic derecho → "Abrir" | Restaura la ventana |
+| Clic derecho → "Salir" | Cierra la app realmente |
+
+> 📝 **Técnico:** Se utiliza `ShutdownMode="OnExplicitShutdown"` en `App.xaml` junto con `OnClosing` override en `MainWindow.xaml.cs` para cancelar el cierre y ejecutar `Hide()` en su lugar.
 
 ### ⌨️ Atajos de Teclado
 
@@ -739,6 +762,9 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings
 - [x] Toast notifications
 - [x] PulseScale animations
 - [x] Icono trifásico (verde/parcial/gris)
+- [x] Botón X minimiza al system tray (no cierra la app)
+- [x] Licencia MIT en el instalador MSI
+- [x] BypassList se carga del registro de Windows como fallback
 
 ### 🔜 v1.1.0 (Próximo)
 
@@ -845,6 +871,12 @@ Altura mínima recomendada: 660px
 - System tray con menú contextual
 - Persistencia de configuración en JSON
 - Tema dark con MahApps.Metro
+- Botón X minimiza al system tray en vez de cerrar (`ShutdownMode="OnExplicitShutdown"`)
+- Licencia MIT mostrada durante la instalación MSI (`License.rtf`)
+- BypassList se carga del registro de Windows como fallback (`ReadBypassList()`)
+- `<local>` siempre se añade al ProxyOverride al aplicar proxy del sistema
+- Warnings ICE91 suprimidos en el build del MSI (`SuppressIces`)
+- Instalación en `LocalAppData` (perUser, sin permisos de admin)
 
 #### 🔧 Changed
 - Primera versión estable
