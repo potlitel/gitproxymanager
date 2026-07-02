@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <Compile Remove="Tools\**" />
+    <Compile Remove="GitProxyManager.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
