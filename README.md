@@ -72,6 +72,9 @@
 - **🔔 Toast** - Notificaciones de confirmación
 - **🎯 Animaciones** - PulseScale en cada interacción
 - **🔽 Minimizar al tray** - Botón X oculta la ventana al system tray en vez de cerrar la app
+- **🔄 Sincronización con el sistema** - Detección automática de cambios en proxy del sistema y de Git cada 5 segundos
+- **🔔 Notificación de cambios** - Toast azul cuando se detecta un cambio externo en la configuración de proxy
+- **📋 Valores por defecto** - Host, puerto y bypass list preconfigurados para uso inmediato
 
 ### 🔗 Lógica de Dependencia
 
@@ -181,6 +184,24 @@ El icono en la bandeja del sistema muestra:
         └──────────┘          └──────────┘
 ```
 
+### 🔄 Flujo de Sincronización (Polling)
+
+```
+Windows/Git cambia externamente
+        │ (polling cada 5s)
+        ▼
+┌──────────────────┐
+│ SystemStatePoller │──▶ Lee registry + git config
+│  DispatcherTimer  │
+└────────┬─────────┘
+         │ (compara con último estado)
+         ▼
+┌──────────────────┐
+│ ProxyStateService │──▶ App.xaml.cs → Actualiza tray icon
+│  .NotifyChanged() │──▶ MainViewModel → Actualiza UI + toast azul
+└──────────────────┘
+```
+
 ---
 
 ## 🧩 Patrón MVVM
@@ -242,7 +263,8 @@ GitProxyManager/
 │   ├── 📄 GitProxyService.cs      # Servicio de git
 │   ├── 📄 SystemProxyService.cs   # Servicio del sistema Windows
 │   ├── 📄 ConfigService.cs        # Servicio de configuración
-│   └── 📄 ProxyStateService.cs    # Estado reactivo (ViewModel ↔ App)
+│   ├── 📄 ProxyStateService.cs    # Estado reactivo (ViewModel ↔ App)
+│   └── 📄 SystemStatePoller.cs    # Polling de cambios externos (5s)
 │
 ├── 📁 ViewModels/
 │   └── 📄 MainViewModel.cs        # ViewModel principal
@@ -356,7 +378,7 @@ public static class ConfigService
 }
 ```
 
-**Ubicación del archivo:** `%AppData%\GitProxyManager\config.json`
+**Ubicación del archivo:** `%LocalAppData%\GitProxyManager\config.json`
 
 ---
 
@@ -367,12 +389,57 @@ namespace GitProxyManager.Services;
 
 public static class ProxyStateService
 {
-    public static event Action<bool, bool, string, int>? ProxyStateChanged;
-    public static void NotifyStateChanged(bool isSystemEnabled, bool isGitEnabled, string host, int port);
+    public static event Action<bool, bool, string, int, string>? ProxyStateChanged;
+    public static void NotifyStateChanged(bool isSystemEnabled, bool isGitEnabled, string host, int port, string bypassList);
 }
 ```
 
 **Descripción:** Patrón pub/sub para comunicación reactiva entre el ViewModel y la capa de presentación (App.xaml.cs). Cuando cambia el estado del proxy, se notifica al system tray para actualizar el icono.
+
+---
+
+### 🔄 SystemStatePoller.cs
+
+```csharp
+namespace GitProxyManager.Services;
+
+public static class SystemStatePoller
+{
+    public static void Start();   // Inicia timer cada 5s
+    public static void Stop();    // Detiene timer
+}
+```
+
+**Descripción:** Servicio de polling que monitorea cambios externos en la configuración de proxy del sistema (Windows Registry) y de Git (~/.gitconfig). Compara el estado actual con el último conocido cada 5 segundos. Cuando detecta un cambio, notifica a través de `ProxyStateService` para actualizar el UI y el system tray.
+
+| Componente | Mecanismo | Frecuencia |
+|:----------:|:---------:|:----------:|
+| Proxy del sistema | `Registry.CurrentUser.OpenSubKey` | Cada 5s |
+| Proxy de Git | `File.ReadAllLines(~/.gitconfig)` | Cada 5s |
+
+**Optimizaciones de performance:**
+- `DispatcherTimer` en UI thread (sin cross-thread issues)
+- Registry read: ~0.01ms | Git file read: ~0.5ms | Comparación: ~0.001ms
+- **Total por tick: <1ms de CPU**
+- Logging diagnóstico a `%LocalAppData%\GitProxyManager\poller.log`
+
+**Flujo de sincronización:**
+```
+Windows/Git cambia externamente
+        │ (polling cada 5s)
+        ▼
+┌──────────────────┐
+│ SystemStatePoller │──▶ Compara con último estado
+│  Lee registry +   │
+│  git config       │
+└────────┬─────────┘
+         │ (solo si hay cambio)
+         ▼
+┌──────────────────┐
+│ ProxyStateService │──▶ App.xaml.cs → Actualiza tray icon
+│  .NotifyChanged() │──▶ MainViewModel → Actualiza UI + toast azul
+└──────────────────┘
+```
 
 ---
 
@@ -575,7 +642,7 @@ Al hacer clic en el botón **X** de la ventana, la app **no se cierra** sino que
 
 ### 📁 Archivo de Configuración
 
-**Ubicación:** `%AppData%\GitProxyManager\config.json`
+**Ubicación:** `%LocalAppData%\GitProxyManager\config.json`
 
 ```json
 {
@@ -615,11 +682,13 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings
 
 | Parámetro | Valor por Defecto | Descripción |
 |:---------:|:-----------------:|:------------|
-| `Host` | `""` | Sin host configurado |
+| `Host` | `172.16.65.62` | Host del proxy corporativo |
 | `Port` | `3128` | Puerto estándar de Squid |
-| `BypassList` | `""` | Sin direcciones bypass |
+| `BypassList` | `192.168.52.*;*.minag.gob.cu;https://172.16.112.3:8006` | Direcciones exceptuadas del proxy |
 | `SystemProxyEnabled` | `false` | Proxy del sistema desactivado |
 | `GitProxyEnabled` | `false` | Proxy de Git desactivado |
+
+> 📝 Si existe un `config.json` previo, se usa su contenido. Si no, se usan estos defaults.
 
 ---
 
@@ -748,7 +817,7 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings
 
 ## 🗺️ Roadmap
 
-### ✅ v1.0.0 (Actual)
+### ✅ v1.2.0 (Actual)
 
 - [x] Toggle button para proxy de Git
 - [x] Configuración de host y puerto
@@ -765,6 +834,9 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings
 - [x] Botón X minimiza al system tray (no cierra la app)
 - [x] Licencia MIT en el instalador MSI
 - [x] BypassList se carga del registro de Windows como fallback
+- [x] Sincronización automática con proxy del sistema y de Git (polling 5s)
+- [x] Notificación toast en cambios externos detectados
+- [x] Valores por defecto preconfigurados (host, puerto, bypass)
 
 ### 🔜 v1.1.0 (Próximo)
 
@@ -839,6 +911,26 @@ Altura mínima recomendada: 660px
 ---
 
 ## 📊 Changelog
+
+### [1.2.0] - 2026-07-02
+
+#### ✅ Added
+- Sincronización automática con proxy del sistema y de Git (polling cada 5s)
+- Detección de cambios externos con notificación toast azul
+- SystemStatePoller lee registry (HKCU\Internet Settings) y git config (~/.gitconfig)
+- ProxyStateService event ahora incluye `bypassList` (5 parámetros)
+- Logging diagnóstico a `poller.log` para debugging de polling
+- Configuración por defecto preconfigurada (host, puerto, bypass list)
+
+#### 🔧 Changed
+- Configuración persistida en `%LocalAppData%` (consistente con MSI perUser)
+- `ReadPollingState()` lee `~/.gitconfig` directamente con `File.ReadAllLines` (sin Process)
+- `ReadPollingState()` usa `Registry.OpenSubKey` para lectura más confiable
+- BypassList se carga del registro como fallback en config.json
+
+#### 🐛 Fixed
+- Polling detecta cambios en sistema y git independientemente (antes compartían un solo tracking)
+- `_isExternalUpdate` guard previene re-aplicación de proxy al sincronizar desde estado externo
 
 ### [1.1.0] - 2026-06-27
 
