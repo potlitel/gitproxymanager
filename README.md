@@ -27,6 +27,7 @@
 - [⚙️ Configuración](#-configuración)
 - [🎨 Diseño UI/UX](#-diseño-uiux)
 - [🛠️ Tecnologías](#-tecnologías)
+- [🧪 Pruebas](#-pruebas)
 - [📸 Capturas](#-capturas)
 - [🗺️ Roadmap](#-roadmap)
 - [🐛 Known Issues](#-known-issues)
@@ -789,7 +790,177 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings
 
 ---
 
-## 📸 Capturas
+## 🧪 Pruebas
+
+### 📋 Resumen
+
+El proyecto incluye **195 pruebas automatizadas** organizadas en 3 categorías:
+
+| Categoría | Cantidad | Archivos | Descripción |
+|:----------:|:--------:|:--------:|:------------|
+| **Unit Tests** | 133 | 12 archivos | Pruebas aisladas de cada componente |
+| **Integration Tests** | 21 | 4 archivos | Flujos completos Apply/Reset + dependencias |
+| **UI Tests (FlaUI)** | 21 | 3 archivos | Interacción visual con la ventana WPF |
+
+### 🏗️ Estructura de Pruebas
+
+```
+GitProxyManager.Tests/
+├── 📁 Helpers/
+│   ├── 📄 TestConfigHelper.cs       # Fábrica de ProxyConfig para tests
+│   └── 📄 TestFileHelper.cs         # Gestión de archivos temporales
+│
+├── 📁 UnitTests/
+│   ├── 📁 Models/
+│   │   └── 📄 ProxyConfigTests.cs           # Valores por defecto del modelo
+│   ├── 📁 Services/
+│   │   ├── 📄 ConfigServiceTests.cs         # Persistencia JSON
+│   │   ├── 📄 GitProxyServiceTests.cs       # Git proxy + ReadPollingState
+│   │   ├── 📄 SystemProxyServiceTests.cs    # Registry + CleanBypassList + ReadPollingState
+│   │   ├── 📄 ProxyStateServiceTests.cs     # Evento pub/sub (5 params)
+│   │   └── 📄 SystemStatePollerTests.cs     # Start/Stop/Logging del poller
+│   ├── 📁 ViewModels/
+│   │   └── 📄 MainViewModelTests.cs         # Lógica VM + OnExternalStateChanged
+│   └── 📁 Converters/
+│       ├── 📄 BoolToBrushConverterTests.cs
+│       ├── 📄 BoolToHorizontalAlignmentConverterTests.cs
+│       ├── 📄 InvertBoolConverterTests.cs
+│       └── 📄 StringToVisibilityConverterTests.cs
+│
+├── 📁 IntegrationTests/
+│   ├── 📄 ApplyProxyFlowTests.cs            # Flujo completo de Apply
+│   ├── 📄 ResetProxyFlowTests.cs            # Flujo completo de Reset
+│   ├── 📄 DependencyLogicTests.cs           # Lógica de dependencia entre toggles
+│   └── 📄 ConfigPersistenceTests.cs         # Roundtrip Save/Load
+│
+├── 📁 UITests/
+│   ├── 📄 MainWindowTests.cs                # Visibilidad, tamaño, elementos
+│   ├── 📄 SystemTrayTests.cs                # Menú contextual, clic derecho
+│   └── 📄 ToggleInteractionTests.cs         # Interacción con toggles
+│
+└── 📄 GlobalUsings.cs                       # global using Xunit;
+```
+
+### ▶️ Cómo Ejecutar las Pruebas
+
+#### Opción 1: Todas las pruebas (Unit + Integration)
+
+```powershell
+# Desde la raíz del proyecto
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~UITests"
+```
+
+> 📝 Se excluyen las UI Tests porque requieren una ventana WPF activa y un entorno gráfico.
+
+#### Opción 2: Solo Unit Tests
+
+```powershell
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~IntegrationTests&FullyQualifiedName!~UITests"
+```
+
+#### Opción 3: Solo Integration Tests
+
+```powershell
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~IntegrationTests"
+```
+
+#### Opción 4: Tests de una categoría específica
+
+```powershell
+# Solo tests de un archivo específico
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName~MainViewModelTests"
+
+# Solo tests de un servicio específico
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName~GitProxyServiceTests"
+
+# Solo tests de un método específico
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName~OnExternalStateChanged"
+```
+
+#### Opción 5: Con Visual Studio
+
+1. Abre `GitProxyManager.sln` en Visual Studio
+2. Ve a **Test Explorer** (`Ctrl + E, T`)
+3. Haz clic en **Run All** (`Ctrl + R, A`)
+4. Verifica que todos los tests aparezcan en verde ✅
+
+#### Opción 6: Todas las pruebas incluyendo UI (requiere display server)
+
+```powershell
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj"
+```
+
+> ⚠️ Las UI Tests usan FlaUI y requieren una sesión de Windows gráfica. En CI/CD se recomienda excluir UITests.
+
+### 🔄 Flujo de Verificación Post-Cambio
+
+Después de cualquier mejora al aplicativo, ejecuta este pipeline para asegurar que nada se rompió:
+
+```powershell
+# 1. Compilar el proyecto completo
+dotnet build "C:\dev\GitProxyManager\GitProxyManager.csproj" -c Debug
+
+# 2. Ejecutar todas las pruebas (excluyendo UI)
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~UITests" --verbosity minimal
+
+# 3. Verificar resultado esperado
+#    Expected output:
+#    Passed!  - Failed: 0, Passed: 195, Skipped: 0, Total: 195
+```
+
+Si algún test falla, el output muestra:
+- **Nombre del test fallido** con el archivo y línea exacta
+- **Error message** con la expectativa que falló
+- **Stack trace** para localizar el problema
+
+### ⚡ Ejecución Rápida (PowerShell alias)
+
+```powershell
+# Agregar alias a tu profile de PowerShell (~\Documents\PowerShell\Microsoft.PowerShell_profile.ps1)
+function Run-Tests { dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~UITests" --verbosity minimal }
+function Build-And-Test { dotnet build "C:\dev\GitProxyManager\GitProxyManager.csproj" -c Debug; Run-Tests }
+
+# Uso:
+Run-Tests          # Ejecuta solo las pruebas
+Build-And-Test     # Compila + ejecuta pruebas
+```
+
+### 📊 Resumen de Cobertura por Componente
+
+| Componente | Unit Tests | Integration Tests | Total |
+|:----------:|:----------:|:-----------------:|:-----:|
+| **ProxyConfig** (modelo) | 8 | - | 8 |
+| **ConfigService** (JSON) | 10 | 4 | 14 |
+| **GitProxyService** (git) | 14 | - | 14 |
+| **SystemProxyService** (registry) | 24 | - | 24 |
+| **ProxyStateService** (eventos) | 10 | - | 10 |
+| **SystemStatePoller** (polling) | 8 | - | 8 |
+| **MainViewModel** (lógica) | 60+ | 10 | 70+ |
+| **Converters** | 18 | - | 18 |
+| **Flujos completos** | - | 7 | 7 |
+| **Total** | **133** | **21** | **154** |
+
+> 📝 El resto de tests (41) cubren interacciones UI con FlaUI y validación visual.
+
+### 🔧 Dependencias de Prueba
+
+| Paquete | Versión | Propósito |
+|:-------:|:-------:|:----------|
+| **xUnit** | 2.9.3 | Framework de testing |
+| **FluentAssertions** | 7.1.0 | Asserts legibles y expresivos |
+| **Moq** | 4.20.70 | Mocking de dependencias |
+| **FlaUI.UIA3** | 5.0.0 | UI Automation para WPF |
+| **FlaUI.Testing** | 5.0.0 | Helpers para FlaUI |
+
+### 🏷️ Notas Técnicas
+
+- Todos los test classes usan `[Collection("SequentialTests")]` para evitar interferencias por archivos compartidos (config.json, registry)
+- Los tests que escriben al config real se serializan para evitar race conditions
+- `TestFileHelper` crea archivos temporales únicos por test para cleanup seguro
+- Los tests de UI usan `FlaUI` con `WindowsVersion.Win10` para automatizar la ventana WPF
+- Los tests de `ProxyStateService` usan la nueva firma de evento `Action<bool, bool, string, int, string>` (5 parámetros)
+
+---
 
 ### 🖥️ System Tray
 
