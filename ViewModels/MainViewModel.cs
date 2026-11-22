@@ -1,3 +1,5 @@
+using System.IO;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GitProxyManager.Models;
@@ -8,15 +10,27 @@ namespace GitProxyManager.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private ProxyConfig _config = new();
-
-    [ObservableProperty]
-    private bool _isEnabled;
+    private bool _isUpdatingMaster;
+    private bool _isExternalUpdate;
+    private readonly DispatcherTimer _toastTimer;
 
     [ObservableProperty]
     private string _host = string.Empty;
 
     [ObservableProperty]
     private int _port = 3128;
+
+    [ObservableProperty]
+    private string _bypassList = string.Empty;
+
+    [ObservableProperty]
+    private bool _masterToggle;
+
+    [ObservableProperty]
+    private bool _isSystemEnabled;
+
+    [ObservableProperty]
+    private bool _isGitEnabled;
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
@@ -27,94 +41,277 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _canToggle;
 
+    [ObservableProperty]
+    private string _systemStatusText = "Inactivo";
+
+    [ObservableProperty]
+    private string _gitStatusText = "Inactivo";
+
+    [ObservableProperty]
+    private string _systemStatusColor = "#888888";
+
+    [ObservableProperty]
+    private string _gitStatusColor = "#888888";
+
+    [ObservableProperty]
+    private bool _isApplying;
+
+    [ObservableProperty]
+    private bool _isResetting;
+
+    [ObservableProperty]
+    private string _toastMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _toastColor = "#4CAF50";
+
+    [ObservableProperty]
+    private bool _toastVisible;
+
     public MainViewModel()
     {
+        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
+        _toastTimer.Tick += (s, e) =>
+        {
+            ToastVisible = false;
+            _toastTimer.Stop();
+        };
+        ProxyStateService.ProxyStateChanged += OnExternalStateChanged;
         LoadConfig();
     }
 
     private void LoadConfig()
     {
-        _config = ConfigService.Load();
-        IsEnabled = _config.IsEnabled;
-        Host = _config.Host;
-        Port = _config.Port;
+        var gitConfig = GitProxyService.ReadCurrentConfig();
+        var sysConfig = SystemProxyService.ReadCurrentConfig();
+        var savedConfig = ConfigService.Load();
+        var registryBypass = SystemProxyService.ReadBypassList();
+
+        Host = !string.IsNullOrWhiteSpace(savedConfig.Host) ? savedConfig.Host : sysConfig.Host;
+        Port = savedConfig.Port != 3128 ? savedConfig.Port : sysConfig.Port;
+        BypassList = !string.IsNullOrWhiteSpace(savedConfig.BypassList)
+            ? savedConfig.BypassList
+            : registryBypass;
+
+        IsSystemEnabled = sysConfig.SystemProxyEnabled;
+        IsGitEnabled = gitConfig.IsEnabled;
+
         CanToggle = !string.IsNullOrWhiteSpace(Host);
-        UpdateStatusMessage();
+        UpdateStatuses();
+        NotifyState();
     }
 
     [RelayCommand]
-    private void Apply()
+    private async Task ApplyAsync()
     {
-        _config = new ProxyConfig
-        {
-            IsEnabled = IsEnabled,
-            Host = Host,
-            Port = Port
-        };
+        if (IsApplying) return;
+        IsApplying = true;
 
-        if (IsEnabled && !string.IsNullOrWhiteSpace(Host))
+        await Task.Run(() =>
         {
-            GitProxyService.ApplyProxy(_config);
-            StatusMessage = $"Proxy activo: {Host}:{Port}";
-            StatusColor = "#4CAF50";
-        }
-        else
+            _config = new ProxyConfig
+            {
+                Host = Host,
+                Port = Port,
+                BypassList = BypassList,
+                SystemProxyEnabled = IsSystemEnabled,
+                GitProxyEnabled = IsGitEnabled,
+                IsEnabled = IsSystemEnabled || IsGitEnabled
+            };
+
+            if (IsSystemEnabled && !string.IsNullOrWhiteSpace(Host))
+                SystemProxyService.ApplyProxy(Host, Port, BypassList);
+            else
+                SystemProxyService.RemoveProxy();
+
+            if (IsGitEnabled && !string.IsNullOrWhiteSpace(Host))
+                GitProxyService.ApplyProxy(_config);
+            else
+                GitProxyService.RemoveProxy();
+
+            ConfigService.Save(_config);
+        });
+
+        UpdateStatuses();
+        NotifyState();
+        ShowToast("Proxy aplicado correctamente", "#4CAF50");
+        IsApplying = false;
+    }
+
+    [RelayCommand]
+    private async Task ResetAsync()
+    {
+        if (IsResetting) return;
+        IsResetting = true;
+
+        await Task.Run(() =>
         {
+            IsSystemEnabled = false;
+            IsGitEnabled = false;
+            MasterToggle = false;
+            Host = string.Empty;
+            Port = 3128;
+            BypassList = string.Empty;
+            CanToggle = false;
+
+            SystemProxyService.RemoveProxy();
             GitProxyService.RemoveProxy();
-            StatusMessage = "Proxy desactivado";
-            StatusColor = "#888888";
-        }
+            ConfigService.Save(new ProxyConfig());
+        });
 
-        ConfigService.Save(_config);
+        UpdateStatuses();
+        NotifyState();
+        ShowToast("Configuración restablecida", "#FF9800");
+        IsResetting = false;
     }
 
-    [RelayCommand]
-    private void Reset()
+    private void ShowToast(string message, string color)
     {
-        IsEnabled = false;
-        Host = string.Empty;
-        Port = 3128;
-        CanToggle = false;
-        GitProxyService.RemoveProxy();
-        ConfigService.Save(new ProxyConfig());
-        StatusMessage = "Configuración restablecida";
-        StatusColor = "#FF9800";
-    }
-
-    [RelayCommand]
-    private void ShowWindow()
-    {
-        var window = new MainWindow();
-        window.Show();
+        ToastMessage = message;
+        ToastColor = color;
+        ToastVisible = true;
+        _toastTimer.Stop();
+        _toastTimer.Start();
     }
 
     partial void OnHostChanged(string value)
     {
         CanToggle = !string.IsNullOrWhiteSpace(value);
-        if (!CanToggle && IsEnabled)
+        if (!CanToggle)
         {
-            IsEnabled = false;
+            IsSystemEnabled = false;
+            IsGitEnabled = false;
         }
-        UpdateStatusMessage();
+        UpdateStatuses();
     }
 
-    partial void OnIsEnabledChanged(bool value)
+    partial void OnIsSystemEnabledChanged(bool value)
     {
-        _config.IsEnabled = value;
-        UpdateStatusMessage();
+        if (_isUpdatingMaster || _isExternalUpdate) return;
+        UpdateMasterState();
+        UpdateStatuses();
     }
 
-    private void UpdateStatusMessage()
+    partial void OnIsGitEnabledChanged(bool value)
     {
-        if (IsEnabled && !string.IsNullOrWhiteSpace(Host))
+        if (_isUpdatingMaster || _isExternalUpdate) return;
+        if (value)
         {
-            StatusMessage = $"Proxy activo: {Host}:{Port}";
+            _isUpdatingMaster = true;
+            IsSystemEnabled = true;
+            _isUpdatingMaster = false;
+        }
+        UpdateMasterState();
+        UpdateStatuses();
+    }
+
+    partial void OnMasterToggleChanged(bool value)
+    {
+        if (_isUpdatingMaster || _isExternalUpdate) return;
+        _isUpdatingMaster = true;
+        IsSystemEnabled = value;
+        IsGitEnabled = value;
+        _isUpdatingMaster = false;
+        UpdateStatuses();
+    }
+
+    private void UpdateMasterState()
+    {
+        _isUpdatingMaster = true;
+        MasterToggle = IsSystemEnabled && IsGitEnabled;
+        _isUpdatingMaster = false;
+    }
+
+    private void UpdateStatuses()
+    {
+        if (IsSystemEnabled && !string.IsNullOrWhiteSpace(Host))
+        {
+            SystemStatusText = $"Activo → {Host}:{Port}";
+            SystemStatusColor = "#4CAF50";
+        }
+        else
+        {
+            SystemStatusText = "Inactivo";
+            SystemStatusColor = "#888888";
+        }
+
+        if (IsGitEnabled && !string.IsNullOrWhiteSpace(Host))
+        {
+            GitStatusText = $"Activo → {Host}:{Port}";
+            GitStatusColor = "#4CAF50";
+        }
+        else
+        {
+            GitStatusText = "Inactivo";
+            GitStatusColor = "#888888";
+        }
+
+        if (IsSystemEnabled || IsGitEnabled)
+        {
+            var activeList = new List<string>();
+            if (IsSystemEnabled) activeList.Add("Sistema");
+            if (IsGitEnabled) activeList.Add("Git");
+            StatusMessage = $"{string.Join(" + ", activeList)} activo(s): {Host}:{Port}";
             StatusColor = "#4CAF50";
         }
         else
         {
-            StatusMessage = "Proxy desactivado";
+            StatusMessage = "Ambos proxies desactivados";
             StatusColor = "#888888";
         }
+    }
+
+    private void NotifyState()
+    {
+        ProxyStateService.NotifyStateChanged(IsSystemEnabled, IsGitEnabled, Host, Port, BypassList);
+    }
+
+    private static readonly string _logPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "GitProxyManager",
+        "poller.log");
+
+    private static void LogViewModel(string message)
+    {
+        try { File.AppendAllText(_logPath, $"[VM] {message}{Environment.NewLine}"); } catch { }
+    }
+
+    private void OnExternalStateChanged(bool isSystemEnabled, bool isGitEnabled, string host, int port, string bypassList)
+    {
+        LogViewModel($"RECEIVED: sys={isSystemEnabled} git={isGitEnabled} host={host}:{port} bypass={bypassList} | _isExternalUpdate={_isExternalUpdate} | current: sys={IsSystemEnabled} git={IsGitEnabled}");
+        if (_isExternalUpdate) return;
+        _isExternalUpdate = true;
+
+        var changed = new List<string>();
+
+        if (IsSystemEnabled != isSystemEnabled)
+            changed.Add(isSystemEnabled ? "Sistema activado" : "Sistema desactivado");
+
+        if (IsGitEnabled != isGitEnabled)
+            changed.Add(isGitEnabled ? "Git activado" : "Git desactivado");
+
+        if (!string.IsNullOrWhiteSpace(host) && Host != host)
+            changed.Add($"Host: {host}");
+
+        if (Port != port)
+            changed.Add($"Puerto: {port}");
+
+        if (BypassList != bypassList)
+            changed.Add("Bypass actualizado");
+
+        IsSystemEnabled = isSystemEnabled;
+        IsGitEnabled = isGitEnabled;
+        Host = host;
+        Port = port;
+        BypassList = bypassList;
+
+        CanToggle = !string.IsNullOrWhiteSpace(Host);
+        UpdateMasterState();
+        UpdateStatuses();
+
+        if (changed.Count > 0)
+            ShowToast($"Cambios detectados: {string.Join(", ", changed)}", "#2196F3");
+
+        _isExternalUpdate = false;
     }
 }

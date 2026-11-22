@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputName>GitProxyManager-v1.0.0-Setup</OutputName>
     <InstallerPlatform>x64</InstallerPlatform>
+    <SuppressIces>ICE91</SuppressIces>
   </PropertyGroup>
 
   <ItemGroup>

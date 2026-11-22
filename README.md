@@ -1,6 +1,6 @@
 # 🚀 Git Proxy Manager
 
-> 🎯 **Gestiona tu proxy de Git de forma sencilla y elegante**
+> 🎯 **Gestiona tu proxy de Git y del sistema de forma sencilla y elegante**
 
 <div align="center">
 
@@ -17,18 +17,19 @@
 
 - [✨ Descripción](#-descripción)
 - [🎯 Características](#-características)
-- [🏗️ Arquitectura](#️-arquitectura)
+- [🏗️ Arquitectura](#-arquitectura)
 - [🧩 Patrón MVVM](#-patrón-mvvm)
 - [📦 Estructura del Proyecto](#-estructura-del-proyecto)
 - [🔧 Clases Principales](#-clases-principales)
 - [🚀 Instalación](#-instalación)
 - [📦 Instalador MSI](#-instalador-msi)
 - [💻 Uso](#-uso)
-- [⚙️ Configuración](#️-configuración)
+- [⚙️ Configuración](#-configuración)
 - [🎨 Diseño UI/UX](#-diseño-uiux)
-- [🛠️ Tecnologías](#️-tecnologías)
+- [🛠️ Tecnologías](#-tecnologías)
+- [🧪 Pruebas](#-pruebas)
 - [📸 Capturas](#-capturas)
-- [ Roadmap](#-roadmap)
+- [🗺️ Roadmap](#-roadmap)
 - [🐛 Known Issues](#-known-issues)
 - [📝 License](#-license)
 
@@ -36,7 +37,7 @@
 
 ## ✨ Descripción
 
-**Git Proxy Manager** es una aplicación de escritorio para Windows que te permite gestionar la configuración de proxy de Git de forma visual e intuitiva. 
+**Git Proxy Manager** es una aplicación de escritorio para Windows que te permite gestionar la configuración de proxy de **Git** y del **sistema Windows** de forma visual e intuitiva.
 
 ¿Cansado de escribir comandos cada vez que cambias de red? ¿Olvidas si el proxy está activado o desactivado? 
 
@@ -50,6 +51,8 @@
 | 🤔 Recordar IPs y puertos | 💾 Configuración guardada |
 | 😰 Olvidar activar/desactivar | 🔄 Toggle instantáneo |
 | 🚫 Sin indicador visual | 📊 System tray informativo |
+| ⚙️ Configurar proxy del sistema manualmente | 🖥️ Gestión integrada del sistema |
+| 📝 Recordar direcciones bypass | 📋 Bypass list editable |
 
 ---
 
@@ -57,12 +60,33 @@
 
 ### 🌟 Funcionalidades Principales
 
-- **🔘 Toggle Button** - Activa/desactiva el proxy con un solo clic
+- **🔗 Toggle Maestro** - Activa/desactiva ambos proxies con un solo clic
+- **🖥️ Proxy del Sistema** - Gestiona el proxy de Windows (navegadores, etc.)
+- **🔧 Proxy de Git** - Gestiona el proxy de Git (operaciones git)
+- **📝 Bypass List** - Edita las direcciones exceptuadas del proxy
+- **🔘 Toggle Button** - Activa/desactiva cada proxy individualmente
 - **📝 Configuración de Proxy** - Host y puerto personalizables
 - **🖥️ System Tray** - Icono en la bandeja del sistema con estado actual
 - **💾 Persistencia** - La configuración se guarda automáticamente
 - **🎨 UI Moderna** - Tema dark con MahApps.Metro
-- **⚡ Rendimiento** - Ligero y rápido
+- **⚡ Loading** - Indicador de progreso en botones
+- **🔔 Toast** - Notificaciones de confirmación
+- **🎯 Animaciones** - PulseScale en cada interacción
+- **🔽 Minimizar al tray** - Botón X oculta la ventana al system tray en vez de cerrar la app
+- **🔄 Sincronización con el sistema** - Detección automática de cambios en proxy del sistema y de Git cada 5 segundos
+- **🔔 Notificación de cambios** - Toast azul cuando se detecta un cambio externo en la configuración de proxy
+- **📋 Valores por defecto** - Host, puerto y bypass list preconfigurados para uso inmediato
+
+### 🔗 Lógica de Dependencia
+
+| Acción | Resultado |
+|:-------|:----------|
+| Activar **Git** | Sistema se activa automáticamente |
+| Desactivar **Git** | Sistema no cambia |
+| Activar **Sistema** | Git no cambia |
+| Desactivar **Sistema** | Git se desactiva (pierde dependencia) |
+| **Maestro ON** | Ambos se activan |
+| **Maestro OFF** | Ambos se desactivan |
 
 ### 📊 System Tray
 
@@ -70,12 +94,14 @@ El icono en la bandeja del sistema muestra:
 
 | Estado | Color | Significado |
 |:------:|:-----:|:------------|
-| 🟢 | Verde | Proxy activo |
-| ⚪ | Gris | Proxy inactivo |
+| 🟢 | Verde | Ambos proxies activos |
+| 🟡 | Parcial | Solo un proxy activo |
+| ⚪ | Gris | Ningún proxy activo |
 
 **Menú contextual:**
 - 📂 Abrir ventana principal
-- 🔀 Habilitar/Desactivar proxy
+- 🖥️ Proxy del sistema (check)
+- 🔧 Proxy de Git (check)
 - ❌ Salir
 
 ---
@@ -107,7 +133,11 @@ El icono en la bandeja del sistema muestra:
 │  ┌─────────────────────────────────────┐                │
 │  │         📋 Services                  │                │
 │  │  ┌─────────────┐ ┌─────────────┐   │                │
-│  │  │GitProxy     │ │ Config      │   │                │
+│  │  │GitProxy     │ │ SystemProxy │   │                │
+│  │  │Service      │ │ Service     │   │                │
+│  │  └─────────────┘ └─────────────┘   │                │
+│  │  ┌─────────────┐ ┌─────────────┐   │                │
+│  │  │Config       │ │ ProxyState  │   │                │
 │  │  │Service      │ │ Service     │   │                │
 │  │  └─────────────┘ └─────────────┘   │                │
 │  └─────────────────┬───────────────────┘                │
@@ -126,6 +156,11 @@ El icono en la bandeja del sistema muestra:
 │  │  %AppData%\GitProxyManager\         │                │
 │  │           config.json               │                │
 │  └─────────────────────────────────────┘                │
+│                                                          │
+│  ┌─────────────────────────────────────┐                │
+│  │         🪟 Windows Registry          │                │
+│  │  HKCU\...\Internet Settings         │                │
+│  └─────────────────────────────────────┘                │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -142,11 +177,30 @@ El icono en la bandeja del sistema muestra:
                     │(ProxyConfig)│
                     └──────────┘
                          │
-                         ▼
-                    ┌──────────┐
-                    │   File   │
-                    │(JSON)    │
-                    └──────────┘
+              ┌──────────┴──────────┐
+              ▼                     ▼
+        ┌──────────┐          ┌──────────┐
+        │   File   │          │ Registry │
+        │ (JSON)   │          │ (Windows)│
+        └──────────┘          └──────────┘
+```
+
+### 🔄 Flujo de Sincronización (Polling)
+
+```
+Windows/Git cambia externamente
+        │ (polling cada 5s)
+        ▼
+┌──────────────────┐
+│ SystemStatePoller │──▶ Lee registry + git config
+│  DispatcherTimer  │
+└────────┬─────────┘
+         │ (compara con último estado)
+         ▼
+┌──────────────────┐
+│ ProxyStateService │──▶ App.xaml.cs → Actualiza tray icon
+│  .NotifyChanged() │──▶ MainViewModel → Actualiza UI + toast azul
+└──────────────────┘
 ```
 
 ---
@@ -208,20 +262,26 @@ GitProxyManager/
 │
 ├── 📁 Services/
 │   ├── 📄 GitProxyService.cs      # Servicio de git
-│   └── 📄 ConfigService.cs        # Servicio de configuración
+│   ├── 📄 SystemProxyService.cs   # Servicio del sistema Windows
+│   ├── 📄 ConfigService.cs        # Servicio de configuración
+│   ├── 📄 ProxyStateService.cs    # Estado reactivo (ViewModel ↔ App)
+│   └── 📄 SystemStatePoller.cs    # Polling de cambios externos (5s)
 │
 ├── 📁 ViewModels/
 │   └── 📄 MainViewModel.cs        # ViewModel principal
 │
 ├── 📁 Resources/
 │   └── 📁 Icons/                   # Iconos de la app
+│       ├── 📄 app-icon.ico         # Icono inactivo
+│       └── 📄 app-icon-active.ico  # Icono activo (verde)
 │
 ├── 📁 Converters.cs               # Convertidores de datos
 ├── 📄 App.xaml                     # Recursos de la aplicación
-├── 📄 App.xaml.cs                  # Lógica de inicio
+├── 📄 App.xaml.cs                  # Lógica de inicio + System Tray
 ├── 📄 MainWindow.xaml              # Ventana principal
-├── 📄 MainWindow.xaml.cs           # Code-behind de ventana
-└── 📄 GitProxyManager.csproj       # Archivo de proyecto
+├── 📄 MainWindow.xaml.cs           # Code-behind (animaciones)
+├── 📄 GitProxyManager.csproj       # Archivo de proyecto
+└── 📄 README.md                    # Esta documentación
 ```
 
 ---
@@ -238,16 +298,20 @@ public class ProxyConfig
     public bool IsEnabled { get; set; }
     public string Host { get; set; } = string.Empty;
     public int Port { get; set; } = 3128;
+    public bool SystemProxyEnabled { get; set; }
+    public bool GitProxyEnabled { get; set; }
+    public string BypassList { get; set; } = string.Empty;
 }
 ```
 
-**Descripción:** Modelo que representa la configuración del proxy.
-
 | Propiedad | Tipo | Descripción |
 |:---------:|:----:|:------------|
-| `IsEnabled` | `bool` | Estado del proxy (activado/desactivado) |
+| `IsEnabled` | `bool` | Estado general del proxy |
 | `Host` | `string` | Dirección del servidor proxy |
 | `Port` | `int` | Puerto del proxy (default: 3128) |
+| `SystemProxyEnabled` | `bool` | Estado del proxy del sistema |
+| `GitProxyEnabled` | `bool` | Estado del proxy de Git |
+| `BypassList` | `string` | Direcciones exceptuadas (separadas por `;`) |
 
 ---
 
@@ -264,13 +328,42 @@ public static class GitProxyService
 }
 ```
 
-**Descripción:** Servicio estático que interactúa con git para gestionar el proxy.
+| Método | Descripción |
+|:------:|:------------|
+| `ApplyProxy()` | Aplica la configuración de proxy a git (`http.proxy`, `https.proxy`) |
+| `RemoveProxy()` | Elimina la configuración de proxy de git |
+| `ReadCurrentConfig()` | Lee la configuración actual de git |
+
+---
+
+### 🪟 SystemProxyService.cs
+
+```csharp
+namespace GitProxyManager.Services;
+
+public static class SystemProxyService
+{
+    public static void ApplyProxy(string host, int port, string bypassList);
+    public static void RemoveProxy();
+    public static ProxyConfig ReadCurrentConfig();
+    public static string ReadBypassList();
+}
+```
+
+**Descripción:** Servicio que interactúa con el registro de Windows para gestionar el proxy del sistema.
+
+| Registro | Valor | Descripción |
+|:--------:|:-----:|:------------|
+| `ProxyEnable` | `0` \| `1` | Activa/desactiva el proxy |
+| `ProxyServer` | `"host:port"` | Dirección del proxy |
+| `ProxyOverride` | `"lista;bypass"` | Direcciones exceptuadas |
 
 | Método | Descripción |
 |:------:|:------------|
-| `ApplyProxy()` | Aplica la configuración de proxy a git |
-| `RemoveProxy()` | Elimina la configuración de proxy de git |
-| `ReadCurrentConfig()` | Lee la configuración actual de git |
+| `ApplyProxy()` | Aplica proxy al registro y siempre añade `<local>` al final de ProxyOverride (equivalente al checkbox de Windows "No usar proxy para direcciones locales") |
+| `RemoveProxy()` | Desactiva el proxy en el registro |
+| `ReadCurrentConfig()` | Lee host, puerto, estado y bypass del registro (solo si ProxyEnable=1) |
+| `ReadBypassList()` | Lee ProxyOverride del registro independientemente de si el proxy está activo, y limpia `<local>` y `<-loopback>` |
 
 ---
 
@@ -286,14 +379,68 @@ public static class ConfigService
 }
 ```
 
-**Descripción:** Servicio para persistir la configuración en disco.
+**Ubicación del archivo:** `%LocalAppData%\GitProxyManager\config.json`
 
-| Método | Descripción |
-|:------:|:------------|
-| `Load()` | Carga la configuración desde el archivo JSON |
-| `Save()` | Guarda la configuración en el archivo JSON |
+---
 
-**Ubicación del archivo:** `%AppData%\GitProxyManager\config.json`
+### 🔔 ProxyStateService.cs
+
+```csharp
+namespace GitProxyManager.Services;
+
+public static class ProxyStateService
+{
+    public static event Action<bool, bool, string, int, string>? ProxyStateChanged;
+    public static void NotifyStateChanged(bool isSystemEnabled, bool isGitEnabled, string host, int port, string bypassList);
+}
+```
+
+**Descripción:** Patrón pub/sub para comunicación reactiva entre el ViewModel y la capa de presentación (App.xaml.cs). Cuando cambia el estado del proxy, se notifica al system tray para actualizar el icono.
+
+---
+
+### 🔄 SystemStatePoller.cs
+
+```csharp
+namespace GitProxyManager.Services;
+
+public static class SystemStatePoller
+{
+    public static void Start();   // Inicia timer cada 5s
+    public static void Stop();    // Detiene timer
+}
+```
+
+**Descripción:** Servicio de polling que monitorea cambios externos en la configuración de proxy del sistema (Windows Registry) y de Git (~/.gitconfig). Compara el estado actual con el último conocido cada 5 segundos. Cuando detecta un cambio, notifica a través de `ProxyStateService` para actualizar el UI y el system tray.
+
+| Componente | Mecanismo | Frecuencia |
+|:----------:|:---------:|:----------:|
+| Proxy del sistema | `Registry.CurrentUser.OpenSubKey` | Cada 5s |
+| Proxy de Git | `File.ReadAllLines(~/.gitconfig)` | Cada 5s |
+
+**Optimizaciones de performance:**
+- `DispatcherTimer` en UI thread (sin cross-thread issues)
+- Registry read: ~0.01ms | Git file read: ~0.5ms | Comparación: ~0.001ms
+- **Total por tick: <1ms de CPU**
+- Logging diagnóstico a `%LocalAppData%\GitProxyManager\poller.log`
+
+**Flujo de sincronización:**
+```
+Windows/Git cambia externamente
+        │ (polling cada 5s)
+        ▼
+┌──────────────────┐
+│ SystemStatePoller │──▶ Compara con último estado
+│  Lee registry +   │
+│  git config       │
+└────────┬─────────┘
+         │ (solo si hay cambio)
+         ▼
+┌──────────────────┐
+│ ProxyStateService │──▶ App.xaml.cs → Actualiza tray icon
+│  .NotifyChanged() │──▶ MainViewModel → Actualiza UI + toast azul
+└──────────────────┘
+```
 
 ---
 
@@ -304,40 +451,40 @@ namespace GitProxyManager.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
-    [ObservableProperty]
-    private bool _isEnabled;
+    // Propiedades de configuración
+    [ObservableProperty] private string _host;
+    [ObservableProperty] private int _port;
+    [ObservableProperty] private string _bypassList;
 
-    [ObservableProperty]
-    private string _host = string.Empty;
+    // Toggles
+    [ObservableProperty] private bool _masterToggle;
+    [ObservableProperty] private bool _isSystemEnabled;
+    [ObservableProperty] private bool _isGitEnabled;
 
-    [ObservableProperty]
-    private int _port = 3128;
+    // UI State
+    [ObservableProperty] private bool _canToggle;
+    [ObservableProperty] private bool _isApplying;
+    [ObservableProperty] private bool _isResetting;
+    [ObservableProperty] private bool _toastVisible;
+    [ObservableProperty] private string _toastMessage;
 
-    [ObservableProperty]
-    private string _statusMessage = string.Empty;
-
-    [RelayCommand]
-    private void Apply();
-
-    [RelayCommand]
-    private void Reset();
-
-    [RelayCommand]
-    private void ShowWindow();
+    // Comandos
+    [RelayCommand] private async Task ApplyAsync();
+    [RelayCommand] private async Task ResetAsync();
 }
 ```
 
-**Descripción:** ViewModel principal que maneja la lógica de presentación.
-
 | Propiedad/Método | Descripción |
 |:----------------:|:------------|
-| `IsEnabled` | Estado del toggle de proxy |
-| `Host` | Texto del host del proxy |
-| `Port` | Puerto del proxy |
-| `StatusMessage` | Mensaje de estado para el usuario |
-| `Apply` | Comando para aplicar configuración |
-| `Reset` | Comando para restablecer configuración |
-| `ShowWindow` | Comando para mostrar la ventana |
+| `MasterToggle` | Toggle maestro (sincroniza ambos) |
+| `IsSystemEnabled` | Estado del proxy del sistema |
+| `IsGitEnabled` | Estado del proxy de Git |
+| `BypassList` | Lista de direcciones bypass |
+| `IsApplying` | Loading durante Apply |
+| `IsResetting` | Loading durante Reset |
+| `ToastVisible` | Visibilidad del toast |
+| `ApplyAsync` | Aplica configuración (con loading + toast) |
+| `ResetAsync` | Restablece configuración (con loading + toast) |
 
 ---
 
@@ -352,7 +499,7 @@ public partial class MainViewModel : ObservableObject
 ### 📥 Opción 1: Descarga Directa
 
 1. Ve a la sección [Releases](https://github.com/tu-usuario/GitProxyManager/releases)
-2. Descarga `GitProxyManager-v1.0.0-setup.exe`
+2. Descarga `GitProxyManager-v1.0.0-setup.msi`
 3. Ejecuta el instalador
 4. Sigue las instrucciones
 
@@ -381,7 +528,7 @@ dotnet run
 | Propiedad | Valor |
 |:---------:|:------|
 | **📦 Archivo** | `GitProxyManager-v1.0.0-Setup.msi` |
-| **📏 Tamaño** | `0.98 MB` |
+| **📏 Tamaño** | `~1 MB` |
 | **🏗️ Plataforma** | `x64` |
 | **🔧 Herramienta** | `WiX Toolset v5` |
 
@@ -389,7 +536,7 @@ dotnet run
 
 | Componente | Descripción |
 |:----------:|:------------|
-| 📦 **App** | Ejecutable + DLLs en `Program Files\GitProxyManager` |
+| 📦 **App** | Ejecutable + DLLs en `LocalAppData\GitProxyManager` |
 | 🔗 **Start Menu** | Acceso directo + Desinstalar en Menú Inicio |
 | 📋 **Registry** | Entradas de desinstalación en Windows |
 
@@ -402,6 +549,8 @@ dotnet build "C:\dev\GitProxyManager\GitProxyManager.csproj" -c Release
 # 📦 Compilar MSI
 dotnet build "C:\dev\GitProxyManager\installer\GitProxyManager.Installer.wixproj" -c Release
 ```
+
+> ⚠️ **Importante:** El MSI es un paquete estático. Después de modificar código, debes rebuildar **ambos** proyectos para que el MSI contenga los cambios.
 
 ### 📁 Ubicación del MSI
 
@@ -416,23 +565,8 @@ C:\dev\GitProxyManager\installer\bin\Release\GitProxyManager-v1.0.0-Setup.msi
 - ✅ **Actualización automática** - Detecta versiones previas
 - ✅ **PerUser** - No requiere permisos de administrador
 - ✅ **Icono personalizado** - Icono representativo de proxy/red
-
-### 🎨 Icono de la Aplicación
-
-La aplicación incluye un icono personalizado que representa:
-- 🔵 **Círculo azul** - Representa la conexión de red
-- 🟢 **Líneas verdes** - Simbolizan el flujo de datos
-- 🟡 **Flecha amarilla** - Indica dirección del proxy
-
-```
-┌─────────────────┐
-│    ╭─────────╮  │
-│   │  ═══════  │  │
-│   │  ═══════  │  │
-│   │    ──▶    │  │
-│    ╰─────────╯  │
-└─────────────────┘
-```
+- ✅ **Licencia MIT** - Texto de licencia mostrado durante la instalación (`License.rtf`)
+- ✅ **Build sin warnings** - Warnings ICE91 suprimidos via `SuppressIces`
 
 ---
 
@@ -442,24 +576,59 @@ La aplicación incluye un icono personalizado que representa:
 
 1. **Inicia la aplicación**
    - El ícono aparecerá en la bandeja del sistema
-   - El ícono será gris (proxy desactivado)
+   - El ícono será gris (proxies desactivados)
 
 2. **Configura tu proxy**
    - Haz clic derecho en el ícono de la bandeja
    - Selecciona "Abrir"
    - Ingresa el host y puerto del proxy
-   - Haz clic en "Aplicar"
+   - (Opcional) Agrega direcciones bypass
 
-3. **Activa/Desactiva el proxy**
-   - Usa el toggle button en la ventana principal
-   - O usa el menú contextual del system tray
+3. **Activa los proxies**
+   - Usa el **toggle maestro** para activar ambos
+   - O activa cada proxy individualmente
+
+### 🔗 Flujo de Uso Diario
+
+```
+┌─────────────────────────────────────────┐
+│  🏢 Llegas a la oficina                 │
+│  ─────────────────────────              │
+│  1. Abres Git Proxy Manager             │
+│  2. Presionas "Habilitar ambos"         │
+│  3. Presionas "Aplicar"                 │
+│  4. ¡Listo! Proxy del sistema + Git     │
+└─────────────────────────────────────────┘
+
+┌─────────────────────────────────────────┐
+│  🏠 Sales de la oficina                 │
+│  ─────────────────────────              │
+│  1. Abres Git Proxy Manager             │
+│  2. Presionas "Habilitar ambos" (OFF)   │
+│  3. Presionas "Aplicar"                 │
+│  4. ¡Listo! Conexión directa            │
+└─────────────────────────────────────────┘
+```
 
 ### 📊 Indicadores del System Tray
 
 | Estado | Acción |
 |:------:|:-------|
-| 🟢 Verde | Proxy activo - Las operaciones de git pasan por el proxy |
-| ⚪ Gris | Proxy inactivo - Git usa conexión directa |
+| 🟢 Verde | Ambos proxies activos |
+| 🟡 Parcial | Solo un proxy activo |
+| ⚪ Gris | Ningún proxy activo |
+
+### 🔽 Minimizar al Tray
+
+Al hacer clic en el botón **X** de la ventana, la app **no se cierra** sino que se oculta al system tray. Para restaurarla:
+
+| Acción | Resultado |
+|:-------|:----------|
+| Doble clic en el icono del tray | Restaura la ventana |
+| Clic derecho → "Abrir" | Restaura la ventana |
+| Clic derecho → "Salir" | Cierra la app realmente |
+
+> 📝 **Técnico:** Se utiliza `ShutdownMode="OnExplicitShutdown"` en `App.xaml` junto con `OnClosing` override en `MainWindow.xaml.cs` para cancelar el cierre y ejecutar `Hide()` en su lugar.
 
 ### ⌨️ Atajos de Teclado
 
@@ -474,13 +643,16 @@ La aplicación incluye un icono personalizado que representa:
 
 ### 📁 Archivo de Configuración
 
-**Ubicación:** `%AppData%\GitProxyManager\config.json`
+**Ubicación:** `%LocalAppData%\GitProxyManager\config.json`
 
 ```json
 {
-  "IsEnabled": true,
+  "IsEnabled": false,
   "Host": "172.16.65.62",
-  "Port": 3128
+  "Port": 3128,
+  "SystemProxyEnabled": false,
+  "GitProxyEnabled": false,
+  "BypassList": "192.168.52.*;*.minag.gob.cu;https://172.16.112.3:8006"
 }
 ```
 
@@ -496,13 +668,28 @@ La aplicación modifica la configuración global de git:
     proxy = http://172.16.65.62:3128
 ```
 
+### 🪟 Configuración del Sistema
+
+La aplicación modifica el registro de Windows:
+
+```
+HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings
+├── ProxyEnable    = 1
+├── ProxyServer    = "172.16.65.62:3128"
+└── ProxyOverride  = "192.168.52.*;*.minag.gob.cu;..."
+```
+
 ### 🎯 Configuración por Defecto
 
 | Parámetro | Valor por Defecto | Descripción |
 |:---------:|:-----------------:|:------------|
-| `IsEnabled` | `false` | Proxy desactivado |
-| `Host` | `""` | Sin host configurado |
+| `Host` | `172.16.65.62` | Host del proxy corporativo |
 | `Port` | `3128` | Puerto estándar de Squid |
+| `BypassList` | `192.168.52.*;*.minag.gob.cu;https://172.16.112.3:8006` | Direcciones exceptuadas del proxy |
+| `SystemProxyEnabled` | `false` | Proxy del sistema desactivado |
+| `GitProxyEnabled` | `false` | Proxy de Git desactivado |
+
+> 📝 Si existe un `config.json` previo, se usa su contenido. Si no, se usan estos defaults.
 
 ---
 
@@ -526,24 +713,57 @@ La aplicación modifica la configuración global de git:
 │  Git Proxy Manager                               ─ □ X │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  🔘 Proxy habilitado          [=====○] ON       │   │
-│  │                                    🟢            │   │
-│  └─────────────────────────────────────────────────┘   │
+│  ╔═══════════════════════════════════════════════════╗  │
+│  ║  🔗  Habilitar ambos                [═══]        ║  │
+│  ╚═══════════════════════════════════════════════════╝  │
+│                                                         │
+│  ╔═══════════════════════════════════════════════════╗  │
+│  ║  🖥️  Proxy del sistema              [══]    ●    ║  │
+│  ║      Windows (navegadores, etc.)                 ║  │
+│  ╚═══════════════════════════════════════════════════╝  │
+│                                                         │
+│  ╔═══════════════════════════════════════════════════╗  │
+│  ║  🔧  Proxy de Git                  [══]    ●    ║  │
+│  ║      Solo operaciones git                        ║  │
+│  ╚═══════════════════════════════════════════════════╝  │
+│                                                         │
+│  ╔═══════════════════════════════════════════════════╗  │
+│  ║  Proxy: [172.16.65.62    ]  Puerto: [3128   ]   ║  │
+│  ╚═══════════════════════════════════════════════════╝  │
+│                                                         │
+│  ╔═══════════════════════════════════════════════════╗  │
+│  ║  Bypass (exceptos):                              ║  │
+│  ║  [ 192.168.52.*;*.minag.gob.cu                 ] ║  │
+│  ╚═══════════════════════════════════════════════════╝  │
+│                                                         │
+│  ╔═══════════════════════════════════════════════════╗  │
+│  ║  🖥️ Sistema: activo → 172.16.65.62:3128         ║  │
+│  ║  🔧 Git: activo → 172.16.65.62:3128             ║  │
+│  ╚═══════════════════════════════════════════════════╝  │
+│                                                         │
+│  ╔════════════════╗        ╔══════════════╗             │
+│  ║    Aplicar     ║        ║ Restablecer  ║             │
+│  ╚════════════════╝        ╚══════════════╝             │
 │                                                         │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │  Proxy: [172.16.65.62    ]  Puerto: [3128   ]  │   │
+│  │  ● Ambos proxies activos: 172.16.65.62:3128    │   │
 │  └─────────────────────────────────────────────────┘   │
 │                                                         │
-│  ┌──────────────┐        ┌──────────────┐              │
-│  │   Aplicar    │        │ Restablecer  │              │
-│  └──────────────┘        └──────────────┘              │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  🟢 Proxy activo: 172.16.65.62:3128             │   │
-│  └─────────────────────────────────────────────────┘   │
+│              ╔═══════════════════════╗                  │
+│              ║  Proxy aplicado ✓     ║  ← Toast        │
+│              ╚═══════════════════════╝                  │
 └─────────────────────────────────────────────────────────┘
 ```
+
+### 🎬 Animaciones
+
+| Elemento | Animación | Descripción |
+|:--------:|:---------:|:------------|
+| `ToggleBorder` | PulseScale | Escala 0.97 → 1.0 con rebote |
+| `SystemBorder` | PulseScale | Escala 0.97 → 1.0 con rebote |
+| `GitBorder` | PulseScale | Escala 0.97 → 1.0 con rebote |
+| `InfoBorder` | PulseScale | Escala 0.97 → 1.0 con rebote |
+| `ToastBorder` | Slide + Fade | Slide-in + fade-in, fade-out |
 
 ---
 
@@ -564,65 +784,237 @@ La aplicación modifica la configuración global de git:
 | Herramienta | Propósito |
 |:-----------:|:----------|
 | **Visual Studio 2022** | IDE de desarrollo |
+| **WiX Toolset v5** | Generador de MSI |
 | **Git** | Control de versiones |
 | **PowerShell** | Scripts de automatización |
 
 ---
 
-## 📸 Capturas
+## 🧪 Pruebas
 
-### 🖼️ Ventana Principal
+### 📋 Resumen
+
+El proyecto incluye **195 pruebas automatizadas** organizadas en 3 categorías:
+
+| Categoría | Cantidad | Archivos | Descripción |
+|:----------:|:--------:|:--------:|:------------|
+| **Unit Tests** | 133 | 12 archivos | Pruebas aisladas de cada componente |
+| **Integration Tests** | 21 | 4 archivos | Flujos completos Apply/Reset + dependencias |
+| **UI Tests (FlaUI)** | 21 | 3 archivos | Interacción visual con la ventana WPF |
+
+### 🏗️ Estructura de Pruebas
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Git Proxy Manager                                       │
-│                                                          │
-│  ╔═══════════════════════════════════════════════════╗   │
-│  ║  🔘 Proxy habilitado              [=====○] ON     ║   │
-│  ╚═══════════════════════════════════════════════════╝   │
-│                                                          │
-│  ╔═══════════════════════════════════════════════════╗   │
-│  ║  Proxy: [172.16.65.62    ]  Puerto: [3128   ]    ║   │
-│  ╚═══════════════════════════════════════════════════╝   │
-│                                                          │
-│  ╔══════════════╗        ╔══════════════╗                │
-│  ║   Aplicar    ║        ║ Restablecer  ║                │
-│  ╚══════════════╝        ╚══════════════╝                │
-│                                                          │
-│  🟢 Proxy activo: 172.16.65.62:3128                     │
-└─────────────────────────────────────────────────────────┘
+GitProxyManager.Tests/
+├── 📁 Helpers/
+│   ├── 📄 TestConfigHelper.cs       # Fábrica de ProxyConfig para tests
+│   └── 📄 TestFileHelper.cs         # Gestión de archivos temporales
+│
+├── 📁 UnitTests/
+│   ├── 📁 Models/
+│   │   └── 📄 ProxyConfigTests.cs           # Valores por defecto del modelo
+│   ├── 📁 Services/
+│   │   ├── 📄 ConfigServiceTests.cs         # Persistencia JSON
+│   │   ├── 📄 GitProxyServiceTests.cs       # Git proxy + ReadPollingState
+│   │   ├── 📄 SystemProxyServiceTests.cs    # Registry + CleanBypassList + ReadPollingState
+│   │   ├── 📄 ProxyStateServiceTests.cs     # Evento pub/sub (5 params)
+│   │   └── 📄 SystemStatePollerTests.cs     # Start/Stop/Logging del poller
+│   ├── 📁 ViewModels/
+│   │   └── 📄 MainViewModelTests.cs         # Lógica VM + OnExternalStateChanged
+│   └── 📁 Converters/
+│       ├── 📄 BoolToBrushConverterTests.cs
+│       ├── 📄 BoolToHorizontalAlignmentConverterTests.cs
+│       ├── 📄 InvertBoolConverterTests.cs
+│       └── 📄 StringToVisibilityConverterTests.cs
+│
+├── 📁 IntegrationTests/
+│   ├── 📄 ApplyProxyFlowTests.cs            # Flujo completo de Apply
+│   ├── 📄 ResetProxyFlowTests.cs            # Flujo completo de Reset
+│   ├── 📄 DependencyLogicTests.cs           # Lógica de dependencia entre toggles
+│   └── 📄 ConfigPersistenceTests.cs         # Roundtrip Save/Load
+│
+├── 📁 UITests/
+│   ├── 📄 MainWindowTests.cs                # Visibilidad, tamaño, elementos
+│   ├── 📄 SystemTrayTests.cs                # Menú contextual, clic derecho
+│   └── 📄 ToggleInteractionTests.cs         # Interacción con toggles
+│
+└── 📄 GlobalUsings.cs                       # global using Xunit;
 ```
+
+### ▶️ Cómo Ejecutar las Pruebas
+
+#### Opción 1: Todas las pruebas (Unit + Integration)
+
+```powershell
+# Desde la raíz del proyecto
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~UITests"
+```
+
+> 📝 Se excluyen las UI Tests porque requieren una ventana WPF activa y un entorno gráfico.
+
+#### Opción 2: Solo Unit Tests
+
+```powershell
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~IntegrationTests&FullyQualifiedName!~UITests"
+```
+
+#### Opción 3: Solo Integration Tests
+
+```powershell
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~IntegrationTests"
+```
+
+#### Opción 4: Tests de una categoría específica
+
+```powershell
+# Solo tests de un archivo específico
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName~MainViewModelTests"
+
+# Solo tests de un servicio específico
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName~GitProxyServiceTests"
+
+# Solo tests de un método específico
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName~OnExternalStateChanged"
+```
+
+#### Opción 5: Con Visual Studio
+
+1. Abre `GitProxyManager.sln` en Visual Studio
+2. Ve a **Test Explorer** (`Ctrl + E, T`)
+3. Haz clic en **Run All** (`Ctrl + R, A`)
+4. Verifica que todos los tests aparezcan en verde ✅
+
+#### Opción 6: Todas las pruebas incluyendo UI (requiere display server)
+
+```powershell
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj"
+```
+
+> ⚠️ Las UI Tests usan FlaUI y requieren una sesión de Windows gráfica. En CI/CD se recomienda excluir UITests.
+
+### 🔄 Flujo de Verificación Post-Cambio
+
+Después de cualquier mejora al aplicativo, ejecuta este pipeline para asegurar que nada se rompió:
+
+```powershell
+# 1. Compilar el proyecto completo
+dotnet build "C:\dev\GitProxyManager\GitProxyManager.csproj" -c Debug
+
+# 2. Ejecutar todas las pruebas (excluyendo UI)
+dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~UITests" --verbosity minimal
+
+# 3. Verificar resultado esperado
+#    Expected output:
+#    Passed!  - Failed: 0, Passed: 195, Skipped: 0, Total: 195
+```
+
+Si algún test falla, el output muestra:
+- **Nombre del test fallido** con el archivo y línea exacta
+- **Error message** con la expectativa que falló
+- **Stack trace** para localizar el problema
+
+### ⚡ Ejecución Rápida (PowerShell alias)
+
+```powershell
+# Agregar alias a tu profile de PowerShell (~\Documents\PowerShell\Microsoft.PowerShell_profile.ps1)
+function Run-Tests { dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~UITests" --verbosity minimal }
+function Build-And-Test { dotnet build "C:\dev\GitProxyManager\GitProxyManager.csproj" -c Debug; Run-Tests }
+
+# Uso:
+Run-Tests          # Ejecuta solo las pruebas
+Build-And-Test     # Compila + ejecuta pruebas
+```
+
+### 📊 Resumen de Cobertura por Componente
+
+| Componente | Unit Tests | Integration Tests | Total |
+|:----------:|:----------:|:-----------------:|:-----:|
+| **ProxyConfig** (modelo) | 8 | - | 8 |
+| **ConfigService** (JSON) | 10 | 4 | 14 |
+| **GitProxyService** (git) | 14 | - | 14 |
+| **SystemProxyService** (registry) | 24 | - | 24 |
+| **ProxyStateService** (eventos) | 10 | - | 10 |
+| **SystemStatePoller** (polling) | 8 | - | 8 |
+| **MainViewModel** (lógica) | 60+ | 10 | 70+ |
+| **Converters** | 18 | - | 18 |
+| **Flujos completos** | - | 7 | 7 |
+| **Total** | **133** | **21** | **154** |
+
+> 📝 El resto de tests (41) cubren interacciones UI con FlaUI y validación visual.
+
+### 🔧 Dependencias de Prueba
+
+| Paquete | Versión | Propósito |
+|:-------:|:-------:|:----------|
+| **xUnit** | 2.9.3 | Framework de testing |
+| **FluentAssertions** | 7.1.0 | Asserts legibles y expresivos |
+| **Moq** | 4.20.70 | Mocking de dependencias |
+| **FlaUI.UIA3** | 5.0.0 | UI Automation para WPF |
+| **FlaUI.Testing** | 5.0.0 | Helpers para FlaUI |
+
+### 🏷️ Notas Técnicas
+
+- Todos los test classes usan `[Collection("SequentialTests")]` para evitar interferencias por archivos compartidos (config.json, registry)
+- Los tests que escriben al config real se serializan para evitar race conditions
+- `TestFileHelper` crea archivos temporales únicos por test para cleanup seguro
+- Los tests de UI usan `FlaUI` con `WindowsVersion.Win10` para automatizar la ventana WPF
+- Los tests de `ProxyStateService` usan la nueva firma de evento `Action<bool, bool, string, int, string>` (5 parámetros)
+
+---
 
 ### 🖥️ System Tray
 
 ```
-┌─────────────────────┐
-│ 📂 Abrir            │
-│─────────────────────│
-│ ☑ Habilitar Proxy   │
-│─────────────────────│
-│ ❌ Salir            │
-└─────────────────────┘
+┌─────────────────────────────┐
+│ 📂 Abrir                    │
+│─────────────────────────────│
+│ ☑ Proxy del sistema         │
+│ ☑ Proxy de Git              │
+│─────────────────────────────│
+│ ❌ Salir                    │
+└─────────────────────────────┘
+```
+
+### 📊 Estados del Icono
+
+```
+┌──────────┐  ┌──────────┐  ┌──────────┐
+│  ⚪ Gris  │  │  🟡 Mixto │  │  🟢 Verde │
+│  Ninguno │  │  Solo uno│  │  Ambos   │
+└──────────┘  └──────────┘  └──────────┘
 ```
 
 ---
 
 ## 🗺️ Roadmap
 
-### ✅ v1.0.0 (Actual)
+### ✅ v1.2.0 (Actual)
 
-- [x] Toggle button para proxy
+- [x] Toggle button para proxy de Git
 - [x] Configuración de host y puerto
 - [x] System tray con menú contextual
 - [x] Persistencia de configuración
 - [x] Tema dark moderno
+- [x] Proxy del sistema Windows
+- [x] Toggle maestro
+- [x] Bypass list editable
+- [x] Loading en botones
+- [x] Toast notifications
+- [x] PulseScale animations
+- [x] Icono trifásico (verde/parcial/gris)
+- [x] Botón X minimiza al system tray (no cierra la app)
+- [x] Licencia MIT en el instalador MSI
+- [x] BypassList se carga del registro de Windows como fallback
+- [x] Sincronización automática con proxy del sistema y de Git (polling 5s)
+- [x] Notificación toast en cambios externos detectados
+- [x] Valores por defecto preconfigurados (host, puerto, bypass)
 
 ### 🔜 v1.1.0 (Próximo)
 
 - [ ] Múltiples perfiles de proxy
 - [ ] Detección automática de red
-- [ ] Notificaciones de cambio de estado
 - [ ] Inicio automático con Windows
+- [ ] Tema claro/oscuro toggle
 
 ### 🚀 v2.0.0 (Futuro)
 
@@ -630,7 +1022,6 @@ La aplicación modifica la configuración global de git:
 - [ ] Configuración por repositorio
 - [ ] Integración con VPN
 - [ ] Logs de actividad
-- [ ] Temas personalizables
 
 ---
 
@@ -650,6 +1041,9 @@ La aplicación modifica la configuración global de git:
 # Solución: Verificar configuración de git
 git config --global --get http.proxy
 git config --global --get https.proxy
+
+# Verificar proxy del sistema (PowerShell)
+Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings" | Select-Object ProxyEnable, ProxyServer
 ```
 
 **Problema:** La app no inicia con Windows
@@ -657,6 +1051,12 @@ git config --global --get https.proxy
 Solución: Agregar a Inicio automático
 1. Win + R → shell:startup
 2. Crear acceso directo a GitProxyManager.exe
+```
+
+**Problema:** Los botones no aparecen
+```
+Solución: Verificar que la ventana tenga altura suficiente
+Altura mínima recomendada: 660px
 ```
 
 ---
@@ -683,6 +1083,49 @@ Solución: Agregar a Inicio automático
 
 ## 📊 Changelog
 
+### [1.2.0] - 2026-07-02
+
+#### ✅ Added
+- Sincronización automática con proxy del sistema y de Git (polling cada 5s)
+- Detección de cambios externos con notificación toast azul
+- SystemStatePoller lee registry (HKCU\Internet Settings) y git config (~/.gitconfig)
+- ProxyStateService event ahora incluye `bypassList` (5 parámetros)
+- Logging diagnóstico a `poller.log` para debugging de polling
+- Configuración por defecto preconfigurada (host, puerto, bypass list)
+
+#### 🔧 Changed
+- Configuración persistida en `%LocalAppData%` (consistente con MSI perUser)
+- `ReadPollingState()` lee `~/.gitconfig` directamente con `File.ReadAllLines` (sin Process)
+- `ReadPollingState()` usa `Registry.OpenSubKey` para lectura más confiable
+- BypassList se carga del registro como fallback en config.json
+
+#### 🐛 Fixed
+- Polling detecta cambios en sistema y git independientemente (antes compartían un solo tracking)
+- `_isExternalUpdate` guard previene re-aplicación de proxy al sincronizar desde estado externo
+
+### [1.1.0] - 2026-06-27
+
+#### ✅ Added
+- Proxy del sistema Windows (HKCU\Internet Settings)
+- Toggle maestro para sincronizar ambos proxies
+- Bypass list editable desde la app
+- Loading inline en botones (Apply/Reset)
+- Toast notifications con slide-in animation
+- PulseScale animations en cada sección
+- Icono trifásico (verde/parcial/gris)
+- Menú contextual con toggles individuales
+- Lógica de dependencia (Git → Sistema)
+
+#### 🔧 Changed
+- UI rediseñada con 3 secciones de toggle
+- Altura de ventana ajustada a 660px
+- Toast overlay fuera del layout principal
+
+#### 🐛 Fixed
+- Cascada de toggles al desactivar Git
+- Toast expandía la ventana al mostrarse
+- Texto invisible al desvincular bindings
+
 ### [1.0.0] - 2026-06-19
 
 #### ✅ Added
@@ -691,6 +1134,12 @@ Solución: Agregar a Inicio automático
 - System tray con menú contextual
 - Persistencia de configuración en JSON
 - Tema dark con MahApps.Metro
+- Botón X minimiza al system tray en vez de cerrar (`ShutdownMode="OnExplicitShutdown"`)
+- Licencia MIT mostrada durante la instalación MSI (`License.rtf`)
+- BypassList se carga del registro de Windows como fallback (`ReadBypassList()`)
+- `<local>` siempre se añade al ProxyOverride al aplicar proxy del sistema
+- Warnings ICE91 suprimidos en el build del MSI (`SuppressIces`)
+- Instalación en `LocalAppData` (perUser, sin permisos de admin)
 
 #### 🔧 Changed
 - Primera versión estable

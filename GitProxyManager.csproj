@@ -15,6 +15,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Tools\**" />
+    <Compile Remove="GitProxyManager.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
     <PackageReference Include="MahApps.Metro" Version="2.4.11" />
@@ -22,7 +27,9 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources\Icons\app-icon.ico" />
+    <EmbeddedResource Include="Resources\Icons\app-icon-active.ico" />
     <Resource Include="Resources\Icons\app-icon.ico" />
+    <Resource Include="Resources\Icons\app-icon-active.ico" />
   </ItemGroup>
 
 </Project>
