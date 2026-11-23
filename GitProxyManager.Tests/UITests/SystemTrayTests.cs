@@ -3,6 +3,7 @@ using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Input;
 using FlaUI.UIA3;
 using FluentAssertions;
+using GitProxyManager.Tests.Helpers;
 
 namespace GitProxyManager.Tests.UITests;
 
@@ -41,14 +42,14 @@ public class SystemTrayTests : IDisposable
         if (projectDir == null)
             throw new DirectoryNotFoundException("Could not find project directory");
 
-        var binPath = Path.Combine(projectDir, "bin", "Debug", "net10.0-windows");
+        var binPath = Path.Combine(projectDir, "bin", "Debug", "net10.0");
         if (!Directory.Exists(binPath))
-            binPath = Path.Combine(projectDir, "bin", "Release", "net10.0-windows");
+            binPath = Path.Combine(projectDir, "bin", "Release", "net10.0");
 
         return Path.Combine(binPath, "GitProxyManager.exe");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_MinimizeButton_HidesToTray()
     {
         // Arrange
@@ -63,7 +64,7 @@ public class SystemTrayTests : IDisposable
         // This test verifies the window is properly set up for tray behavior
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_IsVisible_OnLaunch()
     {
         // Arrange & Act

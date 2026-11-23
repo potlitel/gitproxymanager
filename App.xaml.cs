@@ -1,187 +1,150 @@
-﻿using System.IO;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
+﻿using System.Linq;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
+using Avalonia.Platform;
+using Avalonia.Threading;
 using GitProxyManager.Services;
+using GitProxyManager.ViewModels;
 
 namespace GitProxyManager;
 
 public partial class App : Application
 {
-    private Hardcodet.Wpf.TaskbarNotification.TaskbarIcon? _trayIcon;
-    private System.Drawing.Icon? _iconInactive;
-    private System.Drawing.Icon? _iconActive;
-    private System.Drawing.Icon? _iconPartial;
+    private MainViewModel? _viewModel;
+    private TrayIcon? _trayIcon;
+    private NativeMenuItem? _systemItem;
+    private NativeMenuItem? _gitItem;
+    private WindowIcon? _iconInactive;
+    private WindowIcon? _iconActive;
 
-    protected override void OnStartup(StartupEventArgs e)
+    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+
+    public override void OnFrameworkInitializationCompleted()
     {
-        base.OnStartup(e);
+        _viewModel = new MainViewModel();
 
-        LoadIcons();
-
-        _trayIcon = new Hardcodet.Wpf.TaskbarNotification.TaskbarIcon
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
         {
-            ToolTipText = "Git Proxy Manager",
-            Icon = _iconInactive
-        };
+            lifetime.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            lifetime.Exit += OnExit;
 
-        _trayIcon.TrayMouseDoubleClick += (s, args) =>
-        {
-            ShowMainWindow();
-        };
+            var window = new MainWindow(_viewModel);
+            lifetime.MainWindow = window;
+            window.Show();
+        }
 
-        var contextMenu = new ContextMenu
-        {
-            Background = new SolidColorBrush(Color.FromRgb(0x31, 0x32, 0x44)),
-            Foreground = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4)),
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0x58, 0x5B, 0x7A)),
-            BorderThickness = new Thickness(1)
-        };
+        _iconInactive = LoadIcon("app-icon");
+        _iconActive = LoadIcon("app-icon-active");
 
-        var openItem = CreateMenuItem("Abrir");
-        openItem.Click += (s, args) => ShowMainWindow();
-        contextMenu.Items.Add(openItem);
-
-        contextMenu.Items.Add(new Separator
-        {
-            Background = new SolidColorBrush(Color.FromRgb(0x58, 0x5B, 0x7A))
-        });
-
-        var systemItem = new MenuItem
-        {
-            Header = "Proxy del sistema",
-            IsCheckable = true,
-            Foreground = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4))
-        };
-        systemItem.Checked += (s, args) => ToggleSystemProxy(true);
-        systemItem.Unchecked += (s, args) => ToggleSystemProxy(false);
-        contextMenu.Items.Add(systemItem);
-
-        var gitItem = new MenuItem
-        {
-            Header = "Proxy de Git",
-            IsCheckable = true,
-            Foreground = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4))
-        };
-        gitItem.Checked += (s, args) => ToggleGitProxy(true);
-        gitItem.Unchecked += (s, args) => ToggleGitProxy(false);
-        contextMenu.Items.Add(gitItem);
-
-        contextMenu.Items.Add(new Separator
-        {
-            Background = new SolidColorBrush(Color.FromRgb(0x58, 0x5B, 0x7A))
-        });
-
-        var exitItem = CreateMenuItem("Salir");
-        exitItem.Click += (s, args) =>
-        {
-            _trayIcon.Dispose();
-            Shutdown();
-        };
-        contextMenu.Items.Add(exitItem);
-
-        _trayIcon.ContextMenu = contextMenu;
+        SetupTrayIcon();
 
         ProxyStateService.ProxyStateChanged += OnProxyStateChanged;
-
         SystemStatePoller.Start();
 
-        var sysConfig = SystemProxyService.ReadCurrentConfig();
-        var gitConfig = GitProxyService.ReadCurrentConfig();
-        UpdateTrayIcon(sysConfig.SystemProxyEnabled, gitConfig.IsEnabled, sysConfig.Host, sysConfig.Port);
+        base.OnFrameworkInitializationCompleted();
+    }
+
+    private static WindowIcon LoadIcon(string name)
+        => new(AssetLoader.Open(new Uri($"avares://GitProxyManager/Resources/Icons/{name}.png")));
+
+    private void SetupTrayIcon()
+    {
+        _trayIcon = new TrayIcon
+        {
+            Icon = _iconInactive,
+            ToolTipText = "Git Proxy Manager"
+        };
+        _trayIcon.Clicked += (_, _) => ShowMainWindow();
+
+        var openItem = new NativeMenuItem("Abrir");
+        openItem.Click += (_, _) => ShowMainWindow();
+
+        _systemItem = new NativeMenuItem("Proxy del sistema")
+        {
+            ToggleType = MenuItemToggleType.CheckBox
+        };
+        _systemItem.Click += (_, _) =>
+        {
+            if (_viewModel == null) return;
+            var enable = !_viewModel.IsSystemEnabled;
+            ToggleSystemProxy(enable);
+            _viewModel.SetSystemProxyEnabled(enable);
+        };
+
+        _gitItem = new NativeMenuItem("Proxy de Git")
+        {
+            ToggleType = MenuItemToggleType.CheckBox
+        };
+        _gitItem.Click += (_, _) =>
+        {
+            if (_viewModel == null) return;
+            var enable = !_viewModel.IsGitEnabled;
+            ToggleGitProxy(enable);
+            _viewModel.SetGitProxyEnabled(enable);
+        };
+
+        var exitItem = new NativeMenuItem("Salir");
+        exitItem.Click += (_, _) => ExitApplication();
+
+        var menu = new NativeMenu();
+        menu.Add(openItem);
+        menu.Add(new NativeMenuItemSeparator());
+        menu.Add(_systemItem);
+        menu.Add(_gitItem);
+        menu.Add(new NativeMenuItemSeparator());
+        menu.Add(exitItem);
+        _trayIcon.Menu = menu;
+
+        TrayIcon.SetIcons(this, new TrayIcons { _trayIcon });
+
+        if (_viewModel != null)
+        {
+            _viewModel.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is nameof(MainViewModel.IsSystemEnabled)
+                    or nameof(MainViewModel.IsGitEnabled)
+                    or nameof(MainViewModel.Host)
+                    or nameof(MainViewModel.Port))
+                {
+                    UpdateTrayIcon();
+                }
+            };
+        }
+
+        UpdateTrayIcon();
     }
 
     private void OnProxyStateChanged(bool isSystemEnabled, bool isGitEnabled, string host, int port, string bypassList)
     {
-        UpdateTrayIcon(isSystemEnabled, isGitEnabled, host, port);
+        Dispatcher.UIThread.Post(UpdateTrayIcon);
     }
 
-    private void ShowMainWindow()
+    private void UpdateTrayIcon()
     {
-        foreach (Window window in Current.Windows)
+        if (_trayIcon == null || _viewModel == null) return;
+
+        var systemEnabled = _viewModel.IsSystemEnabled;
+        var gitEnabled = _viewModel.IsGitEnabled;
+        var host = _viewModel.Host;
+        var port = _viewModel.Port;
+
+        _trayIcon.Icon = systemEnabled || gitEnabled ? _iconActive : _iconInactive;
+
+        _trayIcon.ToolTipText = (systemEnabled, gitEnabled) switch
         {
-            if (window is MainWindow mainWindow)
-            {
-                mainWindow.Show();
-                mainWindow.Activate();
-                mainWindow.BringIntoView();
-                return;
-            }
-        }
-
-        var newWindow = new MainWindow();
-        newWindow.Show();
-    }
-
-    private void LoadIcons()
-    {
-        try
-        {
-            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-
-            var iconStream = assembly.GetManifestResourceStream("GitProxyManager.Resources.Icons.app-icon.ico");
-            _iconInactive = iconStream != null ? new System.Drawing.Icon(iconStream) : CreateDefaultIcon();
-
-            var iconActiveStream = assembly.GetManifestResourceStream("GitProxyManager.Resources.Icons.app-icon-active.ico");
-            _iconActive = iconActiveStream != null ? new System.Drawing.Icon(iconActiveStream) : _iconInactive;
-
-            _iconPartial = _iconActive;
-        }
-        catch
-        {
-            _iconInactive = CreateDefaultIcon();
-            _iconActive = _iconInactive;
-            _iconPartial = _iconInactive;
-        }
-    }
-
-    private System.Drawing.Icon CreateDefaultIcon()
-    {
-        var bitmap = new System.Drawing.Bitmap(32, 32);
-        var graphics = System.Drawing.Graphics.FromImage(bitmap);
-        graphics.Clear(System.Drawing.Color.Transparent);
-        var brush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(137, 180, 250));
-        graphics.FillEllipse(brush, 0, 0, 32, 32);
-        var icon = System.Drawing.Icon.FromHandle(bitmap.GetHicon());
-        graphics.Dispose();
-        bitmap.Dispose();
-        return icon;
-    }
-
-    private void UpdateTrayIcon(bool isSystemEnabled, bool isGitEnabled, string host, int port)
-    {
-        if (_trayIcon == null) return;
-
-        if (isSystemEnabled && isGitEnabled)
-        {
-            _trayIcon.Icon = _iconActive;
-            _trayIcon.ToolTipText = $"Git Proxy Manager - Ambos activos ({host}:{port})";
-        }
-        else if (isSystemEnabled || isGitEnabled)
-        {
-            _trayIcon.Icon = _iconPartial;
-            var active = isSystemEnabled ? "Sistema" : "Git";
-            _trayIcon.ToolTipText = $"Git Proxy Manager - {active} activo ({host}:{port})";
-        }
-        else
-        {
-            _trayIcon.Icon = _iconInactive;
-            _trayIcon.ToolTipText = "Git Proxy Manager - Sin proxy activo";
-        }
-    }
-
-    private static MenuItem CreateMenuItem(string header)
-    {
-        return new MenuItem
-        {
-            Header = header,
-            Foreground = new SolidColorBrush(Color.FromRgb(0xCD, 0xD6, 0xF4)),
-            Background = Brushes.Transparent,
-            Padding = new Thickness(20, 6, 20, 6)
+            (true, true) => $"Git Proxy Manager - Ambos activos ({host}:{port})",
+            (true, false) => $"Git Proxy Manager - Sistema activo ({host}:{port})",
+            (false, true) => $"Git Proxy Manager - Git activo ({host}:{port})",
+            _ => "Git Proxy Manager - Sin proxy activo"
         };
+
+        if (_systemItem != null) _systemItem.IsChecked = systemEnabled;
+        if (_gitItem != null) _gitItem.IsChecked = gitEnabled;
     }
 
-    private void ToggleSystemProxy(bool enable)
+    private static void ToggleSystemProxy(bool enable)
     {
         var config = ConfigService.Load();
         if (enable && !string.IsNullOrWhiteSpace(config.Host))
@@ -190,7 +153,7 @@ public partial class App : Application
             SystemProxyService.RemoveProxy();
     }
 
-    private void ToggleGitProxy(bool enable)
+    private static void ToggleGitProxy(bool enable)
     {
         var config = ConfigService.Load();
         if (enable && !string.IsNullOrWhiteSpace(config.Host))
@@ -199,11 +162,36 @@ public partial class App : Application
             GitProxyService.RemoveProxy();
     }
 
-    protected override void OnExit(ExitEventArgs e)
+    private void ShowMainWindow()
+    {
+        if (ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime lifetime) return;
+
+        var window = lifetime.MainWindow as MainWindow;
+        if (window == null)
+        {
+            window = new MainWindow(_viewModel);
+            lifetime.MainWindow = window;
+        }
+
+        if (!window.IsVisible) window.Show();
+        window.Activate();
+    }
+
+    private void ExitApplication()
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime lifetime)
+        {
+            foreach (var window in lifetime.Windows.OfType<MainWindow>())
+                window.AllowClose = true;
+
+            lifetime.Shutdown();
+        }
+    }
+
+    private void OnExit(object? sender, ControlledApplicationLifetimeExitEventArgs e)
     {
         SystemStatePoller.Stop();
         ProxyStateService.ProxyStateChanged -= OnProxyStateChanged;
         _trayIcon?.Dispose();
-        base.OnExit(e);
     }
 }

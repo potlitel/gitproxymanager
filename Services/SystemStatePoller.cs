@@ -1,11 +1,18 @@
 using System.IO;
-using System.Windows.Threading;
+using System.Timers;
+using Avalonia;
+using Timer = System.Timers.Timer;
+using Avalonia.Threading;
 
 namespace GitProxyManager.Services;
 
+/// <summary>
+/// Consulta periódicamente el estado real del proxy (sistema y Git) y avisa
+/// cuando cambia desde fuera de la aplicación.
+/// </summary>
 public static class SystemStatePoller
 {
-    private static DispatcherTimer? _timer;
+    private static Timer? _timer;
     private static bool _isRunning;
 
     private static bool _lastSysEnabled;
@@ -54,11 +61,9 @@ public static class SystemStatePoller
         _lastBypass = sysState.bypassList;
         _initialized = true;
 
-        _timer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromSeconds(5)
-        };
-        _timer.Tick += OnTick;
+        _timer = new Timer(TimeSpan.FromSeconds(5));
+        _timer.Elapsed += OnTick;
+        _timer.AutoReset = true;
         _timer.Start();
         _isRunning = true;
 
@@ -70,14 +75,15 @@ public static class SystemStatePoller
         if (_timer != null)
         {
             _timer.Stop();
-            _timer.Tick -= OnTick;
+            _timer.Elapsed -= OnTick;
+            _timer.Dispose();
             _timer = null;
         }
         _isRunning = false;
         Log("Poller stopped");
     }
 
-    private static void OnTick(object? sender, EventArgs e)
+    private static void OnTick(object? sender, ElapsedEventArgs e)
     {
         if (!_initialized) return;
 
@@ -98,32 +104,33 @@ public static class SystemStatePoller
 
             Log($"TICK sys={sysState.isEnabled}(was={_lastSysEnabled}) git={gitState.isEnabled}(was={_lastGitEnabled}) host={sysState.host}:{sysState.port} bypass={sysState.bypassList} | changed={sysChanged || gitChanged || bypassChanged}");
 
-            if (sysChanged || gitChanged || bypassChanged)
-            {
-                Log($">>> CHANGE DETECTED: sysChanged={sysChanged} gitChanged={gitChanged} bypassChanged={bypassChanged}");
+            if (!sysChanged && !gitChanged && !bypassChanged) return;
 
-                _lastSysEnabled = sysState.isEnabled;
-                _lastGitEnabled = gitState.isEnabled;
-                _lastSysHost = sysState.host;
-                _lastSysPort = sysState.port;
-                _lastGitHost = gitState.host;
-                _lastGitPort = gitState.port;
-                _lastBypass = sysState.bypassList;
+            Log($">>> CHANGE DETECTED: sysChanged={sysChanged} gitChanged={gitChanged} bypassChanged={bypassChanged}");
 
-                var host = sysState.isEnabled ? sysState.host : gitState.host;
-                var port = sysState.isEnabled ? sysState.port : gitState.port;
+            _lastSysEnabled = sysState.isEnabled;
+            _lastGitEnabled = gitState.isEnabled;
+            _lastSysHost = sysState.host;
+            _lastSysPort = sysState.port;
+            _lastGitHost = gitState.host;
+            _lastGitPort = gitState.port;
+            _lastBypass = sysState.bypassList;
 
-                Log($">>> FIRES EVENT: sys={sysState.isEnabled} git={gitState.isEnabled} host={host}:{port}");
+            var host = sysState.isEnabled ? sysState.host : gitState.host;
+            var port = sysState.isEnabled ? sysState.port : gitState.port;
 
-                ProxyStateService.NotifyStateChanged(
-                    sysState.isEnabled,
-                    gitState.isEnabled,
-                    host,
-                    port,
-                    sysState.bypassList);
+            Log($">>> FIRES EVENT: sys={sysState.isEnabled} git={gitState.isEnabled} host={host}:{port}");
 
-                Log(">>> EVENT FIRED OK");
-            }
+            void Notify()
+                => ProxyStateService.NotifyStateChanged(
+                    sysState.isEnabled, gitState.isEnabled, host, port, sysState.bypassList);
+
+            if (Application.Current != null)
+                Dispatcher.UIThread.Post(Notify);
+            else
+                Notify();
+
+            Log(">>> EVENT FIRED OK");
         }
         catch (Exception ex)
         {

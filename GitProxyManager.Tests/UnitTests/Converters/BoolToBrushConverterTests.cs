@@ -1,6 +1,5 @@
 using System.Globalization;
-using System.Windows;
-using System.Windows.Media;
+using Avalonia.Media;
 using FluentAssertions;
 using GitProxyManager;
 

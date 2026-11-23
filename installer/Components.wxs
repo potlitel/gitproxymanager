@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Placeholder: el grupo real se genera con heat.exe antes de compilar el MSI.
+  Ejecuta packaging/build-windows.ps1 para publicar la app y regenerar este archivo.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Fragment>
+    <ComponentGroup Id="PublishedFiles" />
+  </Fragment>
+</Wix>

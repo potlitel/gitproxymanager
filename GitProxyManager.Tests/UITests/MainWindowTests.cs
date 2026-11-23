@@ -3,6 +3,7 @@ using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
 using FlaUI.UIA3;
 using FluentAssertions;
+using GitProxyManager.Tests.Helpers;
 
 namespace GitProxyManager.Tests.UITests;
 
@@ -41,14 +42,14 @@ public class MainWindowTests : IDisposable
         if (projectDir == null)
             throw new DirectoryNotFoundException("Could not find project directory");
 
-        var binPath = Path.Combine(projectDir, "bin", "Debug", "net10.0-windows");
+        var binPath = Path.Combine(projectDir, "bin", "Debug", "net10.0");
         if (!Directory.Exists(binPath))
-            binPath = Path.Combine(projectDir, "bin", "Release", "net10.0-windows");
+            binPath = Path.Combine(projectDir, "bin", "Release", "net10.0");
 
         return Path.Combine(binPath, "GitProxyManager.exe");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_Opens_TitleIsCorrect()
     {
         // Arrange & Act
@@ -58,7 +59,7 @@ public class MainWindowTests : IDisposable
         mainWindow.Title.Should().Be("Git Proxy Manager");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_IsVisible_OnLaunch()
     {
         // Arrange & Act
@@ -68,7 +69,7 @@ public class MainWindowTests : IDisposable
         mainWindow.IsAvailable.Should().BeTrue();
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_ContainsMasterToggle()
     {
         // Arrange & Act
@@ -79,7 +80,7 @@ public class MainWindowTests : IDisposable
         masterToggle.Should().NotBeNull("Master toggle button should exist");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_ContainsSystemToggle()
     {
         // Arrange & Act
@@ -90,7 +91,7 @@ public class MainWindowTests : IDisposable
         systemToggle.Should().NotBeNull("System toggle button should exist");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_ContainsGitToggle()
     {
         // Arrange & Act
@@ -101,7 +102,7 @@ public class MainWindowTests : IDisposable
         gitToggle.Should().NotBeNull("Git toggle button should exist");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_ContainsApplyButton()
     {
         // Arrange & Act
@@ -113,7 +114,7 @@ public class MainWindowTests : IDisposable
         applyButton.Should().NotBeNull("Apply button should exist");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_ContainsResetButton()
     {
         // Arrange & Act
@@ -125,7 +126,7 @@ public class MainWindowTests : IDisposable
         resetButton.Should().NotBeNull("Reset button should exist");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_ContainsHostTextBox()
     {
         // Arrange & Act
@@ -136,7 +137,7 @@ public class MainWindowTests : IDisposable
         textBoxes.Should().HaveCountGreaterOrEqualTo(2, "Should have at least Host and Port text boxes");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_TogglesStartDisabled_WhenNoHost()
     {
         // Arrange & Act

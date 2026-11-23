@@ -1,36 +1,54 @@
 ﻿using System.ComponentModel;
-using System.Windows;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
-using MahApps.Metro.Controls;
+using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
+using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Styling;
 using GitProxyManager.ViewModels;
 
 namespace GitProxyManager;
 
-public partial class MainWindow : MetroWindow
+public partial class MainWindow : Window
 {
     private MainViewModel? _viewModel;
 
+    internal bool AllowClose { get; set; }
+
     public MainWindow()
+        : this(new MainViewModel())
+    {
+    }
+
+    public MainWindow(MainViewModel? viewModel)
     {
         InitializeComponent();
-        Loaded += MainWindow_Loaded;
-        Closing += MainWindow_Closing;
-    }
 
-    private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
-    {
-        e.Cancel = true;
-        Hide();
-    }
-
-    private void MainWindow_Loaded(object sender, RoutedEventArgs e)
-    {
+        DataContext = viewModel ?? new MainViewModel();
         _viewModel = DataContext as MainViewModel;
         if (_viewModel != null)
-        {
             _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+
+        try
+        {
+            Icon = new WindowIcon(Avalonia.Platform.AssetLoader.Open(
+                new Uri("avares://GitProxyManager/Resources/Icons/app-icon.png")));
         }
+        catch
+        {
+            // El icono es decorativo; la app puede funcionar sin el.
+        }
+    }
+
+    protected override void OnClosing(WindowClosingEventArgs e)
+    {
+        if (!AllowClose)
+        {
+            e.Cancel = true;
+            Hide();
+        }
+
+        base.OnClosing(e);
     }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -40,17 +58,17 @@ public partial class MainWindow : MetroWindow
         switch (e.PropertyName)
         {
             case nameof(MainViewModel.MasterToggle):
-                PulseScale(MasterScale);
+                PulseScale(GetScale("MasterBorder"));
                 break;
             case nameof(MainViewModel.IsSystemEnabled):
-                PulseScale(SystemScale);
+                PulseScale(GetScale("SystemBorder"));
                 break;
             case nameof(MainViewModel.IsGitEnabled):
-                PulseScale(GitScale);
+                PulseScale(GetScale("GitBorder"));
                 break;
             case nameof(MainViewModel.SystemStatusText):
             case nameof(MainViewModel.GitStatusText):
-                PulseScale(InfoScale);
+                PulseScale(GetScale("InfoBorder"));
                 break;
             case nameof(MainViewModel.ToastVisible):
                 AnimateToast();
@@ -58,47 +76,47 @@ public partial class MainWindow : MetroWindow
         }
     }
 
-    private void PulseScale(ScaleTransform scale)
+    private ScaleTransform? GetScale(string borderName)
+        => this.FindControl<Border>(borderName)?.RenderTransform as ScaleTransform;
+
+    private static async void PulseScale(ScaleTransform? scale)
     {
-        var animDown = new DoubleAnimation(0.97, TimeSpan.FromMilliseconds(120))
+        if (scale == null) return;
+
+        var animation = new Animation
         {
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn }
-        };
-        animDown.Completed += (s, e) =>
-        {
-            var animUp = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(180))
+            Duration = TimeSpan.FromMilliseconds(260),
+            Easing = new QuadraticEaseInOut(),
+            Children =
             {
-                EasingFunction = new ElasticEase { EasingMode = EasingMode.EaseOut, Oscillations = 1, Springiness = 3 }
-            };
-            scale.BeginAnimation(ScaleTransform.ScaleXProperty, animUp);
-            scale.BeginAnimation(ScaleTransform.ScaleYProperty, animUp);
+                new KeyFrame
+                {
+                    Cue = new Cue(0),
+                    Setters =
+                    {
+                        new Setter(ScaleTransform.ScaleXProperty, 0.97),
+                        new Setter(ScaleTransform.ScaleYProperty, 0.97)
+                    }
+                },
+                new KeyFrame
+                {
+                    Cue = new Cue(1),
+                    Setters =
+                    {
+                        new Setter(ScaleTransform.ScaleXProperty, 1.0),
+                        new Setter(ScaleTransform.ScaleYProperty, 1.0)
+                    }
+                }
+            }
         };
-        scale.BeginAnimation(ScaleTransform.ScaleXProperty, animDown);
-        scale.BeginAnimation(ScaleTransform.ScaleYProperty, animDown);
+
+        await animation.RunAsync(scale);
     }
 
     private void AnimateToast()
     {
-        if (_viewModel == null) return;
-
-        if (_viewModel.ToastVisible)
-        {
-            ToastTranslate.Y = 20;
-            ToastBorder.Opacity = 0;
-
-            var slideIn = new DoubleAnimation(20, 0, TimeSpan.FromMilliseconds(250))
-            {
-                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-            };
-            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(250));
-
-            ToastTranslate.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, slideIn);
-            ToastBorder.BeginAnimation(OpacityProperty, fadeIn);
-        }
-        else
-        {
-            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
-            ToastBorder.BeginAnimation(OpacityProperty, fadeOut);
-        }
+        var toast = this.FindControl<Border>("ToastBorder");
+        if (toast != null)
+            toast.Opacity = _viewModel?.ToastVisible == true ? 1 : 0;
     }
 }

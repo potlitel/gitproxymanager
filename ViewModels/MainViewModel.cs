@@ -1,5 +1,8 @@
 using System.IO;
-using System.Windows.Threading;
+using System.Timers;
+using Avalonia;
+using Timer = System.Timers.Timer;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GitProxyManager.Models;
@@ -12,7 +15,7 @@ public partial class MainViewModel : ObservableObject
     private ProxyConfig _config = new();
     private bool _isUpdatingMaster;
     private bool _isExternalUpdate;
-    private readonly DispatcherTimer _toastTimer;
+    private readonly Timer _toastTimer;
 
     [ObservableProperty]
     private string _host = string.Empty;
@@ -70,14 +73,35 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel()
     {
-        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
-        _toastTimer.Tick += (s, e) =>
+        _toastTimer = new Timer(TimeSpan.FromSeconds(2.5)) { AutoReset = false };
+        _toastTimer.Elapsed += (s, e) =>
         {
-            ToastVisible = false;
+            if (Application.Current != null)
+                Dispatcher.UIThread.Post(() => ToastVisible = false);
+            else
+                ToastVisible = false;
             _toastTimer.Stop();
         };
         ProxyStateService.ProxyStateChanged += OnExternalStateChanged;
         LoadConfig();
+    }
+
+    /// <summary>Actualiza el estado del proxy del sistema desde el icono de bandeja.</summary>
+    public void SetSystemProxyEnabled(bool enabled)
+    {
+        if (enabled && string.IsNullOrWhiteSpace(Host)) return;
+        IsSystemEnabled = enabled;
+        UpdateStatuses();
+        NotifyState();
+    }
+
+    /// <summary>Actualiza el estado del proxy de Git desde el icono de bandeja.</summary>
+    public void SetGitProxyEnabled(bool enabled)
+    {
+        if (enabled && string.IsNullOrWhiteSpace(Host)) return;
+        IsGitEnabled = enabled;
+        UpdateStatuses();
+        NotifyState();
     }
 
     private void LoadConfig()

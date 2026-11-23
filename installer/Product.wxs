@@ -5,7 +5,7 @@
 
   <Package Name="Git Proxy Manager"
            Manufacturer="GitProxyManager"
-           Version="1.0.0.0"
+           Version="1.1.0.0"
            UpgradeCode="A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
            Scope="perUser"
            InstallerVersion="500"
@@ -23,6 +23,9 @@
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="INSTALLFOLDER" Name="GitProxyManager">
 
+        <!-- Los archivos publicados (Avalonia, SkiaSharp, native, etc.) se
+             recolectan con heat en packaging/build-windows.ps1 y se incluyen
+             mediante el ComponentGroup "PublishedFiles" (installer/Components.wxs). -->
         <Component Id="ApplicationFiles" Guid="11111111-2222-3333-4444-555555555555">
           <RegistryValue Root="HKCU"
                          Key="Software\GitProxyManager"
@@ -30,22 +33,6 @@
                          Type="integer"
                          Value="1"
                          KeyPath="yes" />
-          <File Id="GitProxyManager.exe"
-                Source="..\bin\Release\net10.0-windows\GitProxyManager.exe" />
-          <File Id="GitProxyManager.dll"
-                Source="..\bin\Release\net10.0-windows\GitProxyManager.dll" />
-          <File Id="CommunityToolkitMvvmDll"
-                Source="..\bin\Release\net10.0-windows\CommunityToolkit.Mvvm.dll" />
-          <File Id="MahAppsMetroDll"
-                Source="..\bin\Release\net10.0-windows\MahApps.Metro.dll" />
-          <File Id="HardcodetNotifyIconDll"
-                Source="..\bin\Release\net10.0-windows\Hardcodet.NotifyIcon.Wpf.dll" />
-          <File Id="ControlzExDll"
-                Source="..\bin\Release\net10.0-windows\ControlzEx.dll" />
-          <File Id="MicrosoftXamlBehaviorsDll"
-                Source="..\bin\Release\net10.0-windows\Microsoft.Xaml.Behaviors.dll" />
-          <File Id="RuntimeConfig"
-                Source="..\bin\Release\net10.0-windows\GitProxyManager.runtimeconfig.json" />
           <RemoveFolder Id="RemoveInstallFolder"
                         Directory="INSTALLFOLDER"
                         On="uninstall" />
@@ -67,7 +54,7 @@
                          Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\GitProxyManager"
                          Name="DisplayVersion"
                          Type="string"
-                         Value="1.0.0" />
+                         Value="1.1.0" />
           <RegistryValue Root="HKCU"
                          Key="Software\Microsoft\Windows\CurrentVersion\Uninstall\GitProxyManager"
                          Name="InstallLocation"
@@ -122,12 +109,13 @@
     </StandardDirectory>
 
     <!-- Icon -->
-    <Icon Id="AppIcon.exe" SourceFile="..\bin\Release\net10.0-windows\GitProxyManager.exe" />
+    <Icon Id="AppIcon.exe" SourceFile="publish\GitProxyManager.exe" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon.exe" />
 
     <!-- Features -->
     <Feature Id="Main" Title="Git Proxy Manager" Level="1">
       <ComponentRef Id="ApplicationFiles" />
+      <ComponentGroupRef Id="PublishedFiles" />
       <ComponentRef Id="StartMenuShortcuts" />
       <ComponentRef Id="Uninstaller" />
     </Feature>

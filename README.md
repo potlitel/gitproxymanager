@@ -5,7 +5,9 @@
 <div align="center">
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-purple?style=flat-square&logo=dotnet)
-![WPF](https://img.shields.io/badge/WPF-Modern-blue?style=flat-square&logo=windows)
+![Avalonia](https://img.shields.io/badge/Avalonia-12.1-blue?style=flat-square)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04-orange?style=flat-square&logo=ubuntu)
+![Windows](https://img.shields.io/badge/Windows-10%2F11-blue?style=flat-square&logo=windows)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
 
@@ -37,7 +39,7 @@
 
 ## ✨ Descripción
 
-**Git Proxy Manager** es una aplicación de escritorio para Windows que te permite gestionar la configuración de proxy de **Git** y del **sistema Windows** de forma visual e intuitiva.
+**Git Proxy Manager** es una aplicación de escritorio multiplataforma (Ubuntu/Linux y Windows) que te permite gestionar la configuración de proxy de **Git** y del **sistema** de forma visual e intuitiva.
 
 ¿Cansado de escribir comandos cada vez que cambias de red? ¿Olvidas si el proxy está activado o desactivado? 
 
@@ -61,14 +63,14 @@
 ### 🌟 Funcionalidades Principales
 
 - **🔗 Toggle Maestro** - Activa/desactiva ambos proxies con un solo clic
-- **🖥️ Proxy del Sistema** - Gestiona el proxy de Windows (navegadores, etc.)
+- **🖥️ Proxy del Sistema** - Gestiona el proxy del sistema (registro en Windows, gsettings en GNOME/Linux)
 - **🔧 Proxy de Git** - Gestiona el proxy de Git (operaciones git)
 - **📝 Bypass List** - Edita las direcciones exceptuadas del proxy
 - **🔘 Toggle Button** - Activa/desactiva cada proxy individualmente
 - **📝 Configuración de Proxy** - Host y puerto personalizables
 - **🖥️ System Tray** - Icono en la bandeja del sistema con estado actual
 - **💾 Persistencia** - La configuración se guarda automáticamente
-- **🎨 UI Moderna** - Tema dark con MahApps.Metro
+- **🎨 UI Moderna** - Tema dark con Avalonia UI
 - **⚡ Loading** - Indicador de progreso en botones
 - **🔔 Toast** - Notificaciones de confirmación
 - **🎯 Animaciones** - PulseScale en cada interacción
@@ -193,7 +195,7 @@ Windows/Git cambia externamente
         ▼
 ┌──────────────────┐
 │ SystemStatePoller │──▶ Lee registry + git config
-│  DispatcherTimer  │
+│ System.Timers.Timer│
 └────────┬─────────┘
          │ (compara con último estado)
          ▼
@@ -262,7 +264,7 @@ GitProxyManager/
 │
 ├── 📁 Services/
 │   ├── 📄 GitProxyService.cs      # Servicio de git
-│   ├── 📄 SystemProxyService.cs   # Servicio del sistema Windows
+│   ├── 📄 SystemProxyService.cs   # Servicio del sistema (registro/gsettings)
 │   ├── 📄 ConfigService.cs        # Servicio de configuración
 │   ├── 📄 ProxyStateService.cs    # Estado reactivo (ViewModel ↔ App)
 │   └── 📄 SystemStatePoller.cs    # Polling de cambios externos (5s)
@@ -272,12 +274,18 @@ GitProxyManager/
 │
 ├── 📁 Resources/
 │   └── 📁 Icons/                   # Iconos de la app
-│       ├── 📄 app-icon.ico         # Icono inactivo
-│       └── 📄 app-icon-active.ico  # Icono activo (verde)
+│       ├── 📄 app-icon.ico         # Icono inactivo (Windows)
+│       ├── 📄 app-icon-active.ico  # Icono activo (Windows)
+│       ├── 📄 app-icon.png         # Icono inactivo (Avalonia/Linux)
+│       └── 📄 app-icon-active.png  # Icono activo (Avalonia/Linux)
 │
-├── 📁 Converters.cs               # Convertidores de datos
-├── 📄 App.xaml                     # Recursos de la aplicación
-├── 📄 App.xaml.cs                  # Lógica de inicio + System Tray
+├── 📁 packaging/
+│   └── 📄 build-ubuntu.sh          # Genera .deb, AppImage y tar.gz
+│
+├── 📄 Converters.cs                # Convertidores Avalonia
+├── 📄 Program.cs                   # Entry point multiplataforma
+├── 📄 App.xaml                     # Estilos de la aplicación
+├── 📄 App.xaml.cs                  # Inicio + System Tray (Avalonia)
 ├── 📄 MainWindow.xaml              # Ventana principal
 ├── 📄 MainWindow.xaml.cs           # Code-behind (animaciones)
 ├── 📄 GitProxyManager.csproj       # Archivo de proyecto
@@ -411,15 +419,16 @@ public static class SystemStatePoller
 }
 ```
 
-**Descripción:** Servicio de polling que monitorea cambios externos en la configuración de proxy del sistema (Windows Registry) y de Git (~/.gitconfig). Compara el estado actual con el último conocido cada 5 segundos. Cuando detecta un cambio, notifica a través de `ProxyStateService` para actualizar el UI y el system tray.
+**Descripción:** Servicio de polling que monitorea cambios externos en la configuración de proxy del sistema (Registry en Windows, `gsettings`/estado local en Linux) y de Git (`~/.gitconfig`). Compara el estado actual con el último conocido cada 5 segundos. Cuando detecta un cambio, notifica a través de `ProxyStateService` para actualizar el UI y el system tray.
 
 | Componente | Mecanismo | Frecuencia |
 |:----------:|:---------:|:----------:|
-| Proxy del sistema | `Registry.CurrentUser.OpenSubKey` | Cada 5s |
+| Proxy del sistema (Windows) | `Registry.CurrentUser.OpenSubKey` | Cada 5s |
+| Proxy del sistema (Linux) | `gsettings` + estado JSON local | Cada 5s |
 | Proxy de Git | `File.ReadAllLines(~/.gitconfig)` | Cada 5s |
 
 **Optimizaciones de performance:**
-- `DispatcherTimer` en UI thread (sin cross-thread issues)
+- `System.Timers.Timer` con publicación de eventos en `Dispatcher.UIThread.Post` cuando hay UI activa
 - Registry read: ~0.01ms | Git file read: ~0.5ms | Comparación: ~0.001ms
 - **Total por tick: <1ms de CPU**
 - Logging diagnóstico a `%LocalAppData%\GitProxyManager\poller.log`
@@ -492,32 +501,50 @@ public partial class MainViewModel : ObservableObject
 
 ### 📋 Requisitos Previos
 
-- **Windows 10/11** (64-bit)
-- **.NET 10.0 Runtime** o superior
+- **Ubuntu 24.04 (x64)** o **Windows 10/11 (x64)**
+- **.NET 10.0 SDK/Runtime** (no necesario si usas los paquetes self-contained)
 - **Git** instalado y configurado
+- En GNOME: `gsettings` para aplicar el proxy del sistema (opcional)
 
-### 📥 Opción 1: Descarga Directa
+### 🐧 Ubuntu / Linux
 
-1. Ve a la sección [Releases](https://github.com/tu-usuario/GitProxyManager/releases)
-2. Descarga `GitProxyManager-v1.0.0-setup.msi`
-3. Ejecuta el instalador
-4. Sigue las instrucciones
+Los paquetes son self-contained (incluyen el runtime de .NET):
 
-### 📥 Opción 2: Compilación Manual
+```bash
+# Paquete .deb
+sudo apt install ./git-proxy-manager_1.1.0_amd64.deb
+git-proxy-manager
+
+# AppImage (portable)
+chmod +x git-proxy-manager-1.1.0-x86_64.AppImage
+./git-proxy-manager-1.1.0-x86_64.AppImage
+
+# tar.gz portable
+tar -xzf git-proxy-manager-1.1.0-linux-x64.tar.gz
+./GitProxyManager
+```
+
+Para generarlos desde el código:
+
+```bash
+./packaging/build-ubuntu.sh
+```
+
+### 🪟 Windows
 
 ```powershell
-# 📂 Clona el repositorio
-git clone https://github.com/tu-usuario/GitProxyManager.git
-
-# 📂 Navega al directorio
-cd GitProxyManager
-
-# 🔨 Compila el proyecto
 dotnet build -c Release
-
-# 🚀 Ejecuta la aplicación
 dotnet run
 ```
+
+Para generar el instalador MSI (WiX v5) y la publicación:
+
+```powershell
+.\packaging\build-windows.ps1
+```
+
+También puedes publicar directamente con
+`dotnet publish -c Release -r win-x64 --self-contained true`.
 
 ---
 
@@ -527,7 +554,7 @@ dotnet run
 
 | Propiedad | Valor |
 |:---------:|:------|
-| **📦 Archivo** | `GitProxyManager-v1.0.0-Setup.msi` |
+| **📦 Archivo** | `GitProxyManager-v1.1.0-Setup.msi` |
 | **📏 Tamaño** | `~1 MB` |
 | **🏗️ Plataforma** | `x64` |
 | **🔧 Herramienta** | `WiX Toolset v5` |
@@ -543,24 +570,21 @@ dotnet run
 ### 🛠️ Regenerar el MSI
 
 ```powershell
-# 🔨 Compilar app en Release
-dotnet build "C:\dev\GitProxyManager\GitProxyManager.csproj" -c Release
-
-# 📦 Compilar MSI
-dotnet build "C:\dev\GitProxyManager\installer\GitProxyManager.Installer.wixproj" -c Release
+# Publica en installer\publish, recolecta archivos con heat y compila el MSI
+.\packaging\build-windows.ps1
 ```
 
-> ⚠️ **Importante:** El MSI es un paquete estático. Después de modificar código, debes rebuildar **ambos** proyectos para que el MSI contenga los cambios.
+> ⚠️ **Importante:** El MSI usa `installer\Components.wxs`, generado con `heat` a partir de `installer\publish`. Vuelve a ejecutar el script después de modificar el código.
 
 ### 📁 Ubicación del MSI
 
 ```
-C:\dev\GitProxyManager\installer\bin\Release\GitProxyManager-v1.0.0-Setup.msi
+C:\dev\GitProxyManager\installer\bin\Release\GitProxyManager-v1.1.0-Setup.msi
 ```
 
 ### 🔗 Características del Instalador
 
-- ✅ **Instalación silenciosa** - `msiexec /i GitProxyManager-v1.0.0-Setup.msi /quiet`
+- ✅ **Instalación silenciosa** - `msiexec /i GitProxyManager-v1.1.0-Setup.msi /quiet`
 - ✅ **Desinstalación limpia** - Desde Panel de Control o Menú Inicio
 - ✅ **Actualización automática** - Detecta versiones previas
 - ✅ **PerUser** - No requiere permisos de administrador
@@ -774,9 +798,9 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings
 | Tecnología | Versión | Propósito |
 |:----------:|:-------:|:----------|
 | ![.NET](https://img.shields.io/badge/.NET-10.0-purple) | 10.0 | Framework runtime |
-| ![WPF](https://img.shields.io/badge/WPF-Modern-blue) | - | UI Framework |
-| ![MahApps](https://img.shields.io/badge/MahApps.Metro-2.4.11-orange) | 2.4.11 | UI Controls |
-| ![Hardcodet](https://img.shields.io/badge/Hardcodet.NotifyIcon-2.0.1-red) | 2.0.1 | System Tray |
+| ![Avalonia](https://img.shields.io/badge/Avalonia-12.1-blue) | 12.1.6 | UI multiplataforma (Linux/Windows) |
+| ![Fluent](https://img.shields.io/badge/Avalonia.Themes.Fluent-12.1-blue) | 12.1.6 | Tema y controles |
+| ![Tray](https://img.shields.io/badge/TrayIcon-Integrado-blue) | - | Bandeja del sistema (Avalonia TrayIcon + NativeMenu) |
 | ![CommunityToolkit](https://img.shields.io/badge/CommunityToolkit.Mvvm-8.4.2-green) | 8.4.2 | MVVM Helpers |
 
 ### 🔧 Herramientas de Desarrollo
@@ -800,7 +824,7 @@ El proyecto incluye **195 pruebas automatizadas** organizadas en 3 categorías:
 |:----------:|:--------:|:--------:|:------------|
 | **Unit Tests** | 133 | 12 archivos | Pruebas aisladas de cada componente |
 | **Integration Tests** | 21 | 4 archivos | Flujos completos Apply/Reset + dependencias |
-| **UI Tests (FlaUI)** | 21 | 3 archivos | Interacción visual con la ventana WPF |
+| **UI Tests (FlaUI)** | 21 | 3 archivos | Interacción visual (solo Windows; se omiten en Linux) |
 
 ### 🏗️ Estructura de Pruebas
 
@@ -808,7 +832,8 @@ El proyecto incluye **195 pruebas automatizadas** organizadas en 3 categorías:
 GitProxyManager.Tests/
 ├── 📁 Helpers/
 │   ├── 📄 TestConfigHelper.cs       # Fábrica de ProxyConfig para tests
-│   └── 📄 TestFileHelper.cs         # Gestión de archivos temporales
+│   ├── 📄 TestFileHelper.cs         # Gestión de archivos temporales
+│   └── 📄 WindowsOnlyFactAttribute.cs # Omite UI tests fuera de Windows
 │
 ├── 📁 UnitTests/
 │   ├── 📁 Models/
@@ -850,7 +875,7 @@ GitProxyManager.Tests/
 dotnet test "C:\dev\GitProxyManager\GitProxyManager.Tests\GitProxyManager.Tests.csproj" --filter "FullyQualifiedName!~UITests"
 ```
 
-> 📝 Se excluyen las UI Tests porque requieren una ventana WPF activa y un entorno gráfico.
+> 📝 En Linux las UI Tests se omiten automáticamente (FlaUI requiere UI Automation de Windows). En Windows se ejecutan con normalidad.
 
 #### Opción 2: Solo Unit Tests
 
@@ -938,26 +963,25 @@ Build-And-Test     # Compila + ejecuta pruebas
 | **MainViewModel** (lógica) | 60+ | 10 | 70+ |
 | **Converters** | 18 | - | 18 |
 | **Flujos completos** | - | 7 | 7 |
-| **Total** | **133** | **21** | **154** |
+| **Total (Linux, sin UI tests)** | - | - | **195** |
 
-> 📝 El resto de tests (41) cubren interacciones UI con FlaUI y validación visual.
+> 📝 En Linux se ejecutan 195 tests (los archivos `UITests` se excluyen por depender de Windows UI Automation). En Windows se incluyen además los tests de UI con FlaUI.
 
 ### 🔧 Dependencias de Prueba
 
 | Paquete | Versión | Propósito |
 |:-------:|:-------:|:----------|
 | **xUnit** | 2.9.3 | Framework de testing |
-| **FluentAssertions** | 7.1.0 | Asserts legibles y expresivos |
-| **Moq** | 4.20.70 | Mocking de dependencias |
-| **FlaUI.UIA3** | 5.0.0 | UI Automation para WPF |
-| **FlaUI.Testing** | 5.0.0 | Helpers para FlaUI |
+| **FluentAssertions** | 7.2.0 | Asserts legibles y expresivos |
+| **Moq** | 4.20.72 | Mocking de dependencias |
+| **FlaUI.UIA3** | 4.0.0 | UI Automation para tests de UI en Windows |
 
 ### 🏷️ Notas Técnicas
 
 - Todos los test classes usan `[Collection("SequentialTests")]` para evitar interferencias por archivos compartidos (config.json, registry)
 - Los tests que escriben al config real se serializan para evitar race conditions
 - `TestFileHelper` crea archivos temporales únicos por test para cleanup seguro
-- Los tests de UI usan `FlaUI` con `WindowsVersion.Win10` para automatizar la ventana WPF
+- Los tests de UI usan `FlaUI` con `WindowsOnlyFact` y solo se ejecutan en Windows; en Linux se excluyen de la compilación
 - Los tests de `ProxyStateService` usan la nueva firma de evento `Action<bool, bool, string, int, string>` (5 parámetros)
 
 ---
@@ -1018,7 +1042,7 @@ Build-And-Test     # Compila + ejecuta pruebas
 
 ### 🚀 v2.0.0 (Futuro)
 
-- [ ] Soporte multiplataforma (Linux/macOS)
+- [x] Soporte multiplataforma (Linux/Windows con Avalonia)
 - [ ] Configuración por repositorio
 - [ ] Integración con VPN
 - [ ] Logs de actividad
@@ -1106,6 +1130,9 @@ Altura mínima recomendada: 660px
 ### [1.1.0] - 2026-06-27
 
 #### ✅ Added
+- Port multiplataforma a Avalonia UI (Ubuntu/Linux y Windows)
+- Proxy del sistema en Linux mediante `gsettings` (GNOME) y estado local
+- Paquetes Ubuntu: `.deb`, AppImage y `tar.gz`
 - Proxy del sistema Windows (HKCU\Internet Settings)
 - Toggle maestro para sincronizar ambos proxies
 - Bypass list editable desde la app
@@ -1133,7 +1160,7 @@ Altura mínima recomendada: 660px
 - Configuración de host y puerto
 - System tray con menú contextual
 - Persistencia de configuración en JSON
-- Tema dark con MahApps.Metro
+- Tema dark con Avalonia FluentTheme
 - Botón X minimiza al system tray en vez de cerrar (`ShutdownMode="OnExplicitShutdown"`)
 - Licencia MIT mostrada durante la instalación MSI (`License.rtf`)
 - BypassList se carga del registro de Windows como fallback (`ReadBypassList()`)
@@ -1179,8 +1206,8 @@ SOFTWARE.
 
 ## 🙏 Agradecimientos
 
-- [MahApps.Metro](https://mahapps.com/) - UI Controls increíbles
-- [Hardcodet.NotifyIcon](https://github.com/hardcodet/wpf-notifyicon) - System Tray para WPF
+- [Avalonia UI](https://avaloniaui.net/) - UI multiplataforma
+- [Avalonia TrayIcon](https://docs.avaloniaui.net/docs/concepts/tray-icon) - System Tray multiplataforma
 - [CommunityToolkit.Mvvm](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) - Helpers MVVM
 - [Catppuccin](https://catppuccin.com/) - Tema de colores hermoso
 

@@ -3,6 +3,7 @@ using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
 using FlaUI.UIA3;
 using FluentAssertions;
+using GitProxyManager.Tests.Helpers;
 
 namespace GitProxyManager.Tests.UITests;
 
@@ -41,14 +42,14 @@ public class ToggleInteractionTests : IDisposable
         if (projectDir == null)
             throw new DirectoryNotFoundException("Could not find project directory");
 
-        var binPath = Path.Combine(projectDir, "bin", "Debug", "net10.0-windows");
+        var binPath = Path.Combine(projectDir, "bin", "Debug", "net10.0");
         if (!Directory.Exists(binPath))
-            binPath = Path.Combine(projectDir, "bin", "Release", "net10.0-windows");
+            binPath = Path.Combine(projectDir, "bin", "Release", "net10.0");
 
         return Path.Combine(binPath, "GitProxyManager.exe");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MasterToggle_On_EnablesBothIndividually()
     {
         // Arrange
@@ -72,7 +73,7 @@ public class ToggleInteractionTests : IDisposable
         gitToggle?.As<ToggleButton>()?.IsEnabled.Should().BeTrue();
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void ApplyButton_DisabledDuringApply()
     {
         // Arrange
@@ -92,7 +93,7 @@ public class ToggleInteractionTests : IDisposable
         applyButton?.As<Button>()?.IsEnabled.Should().BeTrue();
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void MainWindow_ToggleSwitches_Visible()
     {
         // Arrange & Act

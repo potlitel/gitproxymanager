@@ -98,58 +98,37 @@ public static class GitProxyService
     }
 
     private static void RunGitConfig(string key, string value)
-    {
-        var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = $"config --global {key} \"{value}\"",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
-        process.Start();
-        process.WaitForExit();
-    }
+        => RunGit("config", "--global", key, value);
 
     private static void RunGitConfigUnset(string key)
-    {
-        var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = $"config --global --unset {key}",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            }
-        };
-        process.Start();
-        process.WaitForExit();
-    }
+        => RunGit("config", "--global", "--unset", key);
 
     private static string RunGitConfigGet(string key)
+        => RunGit("config", "--global", "--get", key);
+
+    private static string RunGit(params string[] args)
     {
-        var process = new Process
+        try
         {
-            StartInfo = new ProcessStartInfo
+            var psi = new ProcessStartInfo("git")
             {
-                FileName = "git",
-                Arguments = $"config --global --get {key}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
-            }
-        };
-        process.Start();
-        var output = process.StandardOutput.ReadToEnd().Trim();
-        process.WaitForExit();
-        return output;
+            };
+            foreach (var arg in args) psi.ArgumentList.Add(arg);
+
+            using var process = Process.Start(psi);
+            if (process == null) return string.Empty;
+
+            var output = process.StandardOutput.ReadToEnd().Trim();
+            process.WaitForExit();
+            return output;
+        }
+        catch
+        {
+            return string.Empty;
+        }
     }
 }
